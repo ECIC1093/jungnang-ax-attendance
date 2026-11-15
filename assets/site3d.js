@@ -128,9 +128,8 @@ const ROAD = { south: -25, east: 23, north: 22.5, west: -28 };   // 길 중심�
 const asphalt = M(0x4b5059), walkM = M(0xc9c3b5), lineM = M(0xf1f1e8), yellowM = M(0xe8b830);
 flatBoth(9, 420, asphalt, ROAD.south, -60); flatBoth(2.4, 420, walkM, ROAD.south + 5.7, -60, 0.015); flatBoth(2.4, 420, walkM, ROAD.south - 5.7, -60, 0.015);   // 봉화산로
 // 잔디광장 건너 길: 봉화산로에서 북쪽 길까지만 이어지는 단지 안 길(양쪽에 차가 줄지어 주차) — 위성사진 기준
-flatBoth(ROAD.north + 2.5 - ROAD.south, 6, asphalt, (ROAD.north + 2.5 + ROAD.south) / 2, ROAD.east); flatBoth(ROAD.north - ROAD.south, 1.4, walkM, (ROAD.north + ROAD.south) / 2, ROAD.east - 3.7, 0.015);
-flatBoth(5, 190, asphalt, ROAD.north, -25);                                                                                                       // 북쪽 길(숲 아래 ~ 아파트 단지)
-flatBoth(ROAD.north - ROAD.south, 5, asphalt, (ROAD.north + ROAD.south) / 2, ROAD.west);                                                          // 서쪽 봉화산로47길
+flatBoth(ROAD.north - ROAD.south, 6, asphalt, (ROAD.north + ROAD.south) / 2, ROAD.east);   // 끝은 앞마당(지하주차장 입구 앞) flatBoth(ROAD.north - ROAD.south, 1.4, walkM, (ROAD.north + ROAD.south) / 2, ROAD.east - 3.7, 0.015);
+// 북쪽 길(건물 북쪽 면 따라 나가는 출구 길)·서쪽 봉화산로47길은 아래 '언덕' 다음에 그린다(오르막이라 언덕 높이가 필요)
 flatBoth(9, 300, asphalt, -150, -60); flatBoth(300, 8, asphalt, 20, -150); flatBoth(260, 7, asphalt, 140, -20);                                   // 먼 동네 길
 for (let z = NEAR.z0 + 2; z <= NEAR.z1 - 2; z += 7) if (Math.abs(z - ROAD.east) > 6) box(0.22, 0.02, 3.4, yellowM, ROAD.south, 0.04, z, scene);
 for (let x = ROAD.south + 7; x <= ROAD.north - 4; x += 6) box(3, 0.02, 0.22, lineM, x, 0.04, ROAD.east, scene);
@@ -196,17 +195,24 @@ const aptSide = M(0xe6e3dc), aptTop = M(0x6aa77a);
     if (blocked(x, z)) continue;
     const w = 8 + rnd() * 12, d = 8 + rnd() * 10, h = 3 + rnd() * (rnd() < 0.2 ? 18 : 8), k = made % 5;
     const g = new THREE.Group(); box(w, h, d, walls[k], 0, h / 2, 0, g); box(w + 0.4, 0.5, d + 0.4, roofs[(k + 2) % 5], 0, h + 0.25, 0, g);
-    g.position.set(x, 0, z); g.rotation.y = rnd() * 0.5; scene.add(toBg(g)); made++;
+    g.position.set(x, 0, z); g.rotation.y = rnd() * 0.5;
+    if (!onRoad(x, z, w, d, g.rotation.y)) scene.add(toBg(g));   // 길 위에 걸치는 집은 그리지 않음(무작위 순서는 그대로 두려고 계산은 같이 함)
+    made++;
   }
 }
+// 먼 길(봉화산로·먼 동네 길) 위에 걸치는지: 돌린 사각형의 바깥 상자로 확인
+function onRoad(x, z, w, d, rot) {
+  const hx = (w * Math.abs(Math.cos(rot)) + d * Math.abs(Math.sin(rot))) / 2 + 1, hz = (w * Math.abs(Math.sin(rot)) + d * Math.abs(Math.cos(rot))) / 2 + 1;
+  const roads = [[ROAD.south - 7, ROAD.south + 7, -270, 150], [-155, -145, -210, 90], [-130, 170, -155, -145], [10, 270, -24, -16]];
+  return roads.some(([x0, x1, z0, z1]) => x + hx > x0 && x - hx < x1 && z + hz > z0 && z - hz < z1);
+}
 // 위성사진(카카오맵) 기준 주변: 북서·서쪽 바로 뒤가 봉화산 숲, 잔디광장 건너(북동)는 아파트 단지와 큰 주차장, 47길 건너(남서)는 낮은 흰 아파트
-[[30, -26, 16, 9, 12, 0xe4e1da, 0x7fa3b8]]   // 보건소(숲 가장자리)
-  .forEach(([x, z, w, h, d, wall, roof]) => { box(w, h, d, wall, x, h / 2, z, scene); box(w + 0.6, 0.6, d + 0.6, roof, x, h + 0.3, z, scene); });
+// (예전 '보건소' 상자는 지움: 중랑구보건소는 구청 건물 북쪽 면 안에 있음 — 거리뷰 2026-11-15. 그 상자는 북쪽 길 위에 걸쳐 있었음)
 { // 잔디광장 건너 북동쪽 아파트 단지(초록 지붕 6층) + 단지 주차장
   const lotM = M(0x9a9da3), wall = M(0xeeeae2), roof = M(0x4f9a7a), win = canvasTex(64, 64, (c, w, h) => { c.fillStyle = '#eeeae2'; c.fillRect(0, 0, w, h); c.fillStyle = '#6f8290'; for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) c.fillRect(4 + k * 15, 5 + r * 15, 9, 8); });
   win.wrapS = win.wrapT = THREE.RepeatWrapping; win.repeat.set(6, 2.4);
   const face = new THREE.MeshLambertMaterial({ map: win, emissive: 0x000000, emissiveMap: aptLitMap }); bgLit.push([face, 0.45]);
-  flatBoth(70, 34, lotM, 14, 46, 0.02);
+  flatBoth(66, 34, lotM, 15, 46, 0.02);   // x -18 ~ 48(봉화산로 보도와 안 겹치게)
   for (let x = -16; x <= 44; x += 2.6) [33, 38.5, 52].forEach(z => { if ((x * 7 + z) % 5 > 1) { const c = new THREE.Group(); box(2, 0.8, 4, [0xffffff, 0x2a2d33, 0xd33b2c, 0x9aa4b0, 0x3b6fb6][Math.abs(Math.round(x * 3 + z)) % 5], 0, 0.6, 0, c); box(1.7, 0.6, 2.2, 0x26323d, 0, 1.2, -0.2, c); c.position.set(x, 0, z); scene.add(c); } });
   [[-6, 45.5, 24, 10, 8], [26, 45.5, 24, 10, 8], [10, 59, 30, 10, 8], [44, 59, 22, 10, 8]].forEach(([x, z, w, h, d]) => {
     const m = box(w, h, d, [wall, wall, roof, roof, face, face], x, h / 2, z, scene); box(w + 0.4, 0.5, d + 0.4, roof, x, h + 0.25, z, scene);
@@ -214,50 +220,174 @@ const aptSide = M(0xe6e3dc), aptTop = M(0x6aa77a);
 }
 { // 47길 건너 남서쪽 낮은 흰 아파트
   const wall = M(0xf0eee8), roof = M(0x9aa0a6);
-  [[-30, -40, 9, 18], [-12, -42, 9, 18], [6, -44, 9, 16], [-30, -58, 9, 18], [-12, -60, 9, 18]].forEach(([x, z, w, d]) => { box(w, 9, d, wall, x, 4.5, z, scene); box(w + 0.4, 0.5, d + 0.4, roof, x, 9.25, z, scene); });
+  // 봉화산로(x -29.5~-20.5)·보도(-18.1까지)와 47길(z -30.5~-25.5)·그 가로수(z -32.5)를 피한 자리. 예전 x -30 두 동은 봉화산로 위에 있었음
+  [[-11.5, -44, 9, 18], [1.5, -44, 9, 18], [14, -44, 8, 16], [-11.5, -63, 9, 18], [1.5, -63, 9, 18]].forEach(([x, z, w, d]) => { box(w, 9, d, wall, x, 4.5, z, scene); box(w + 0.4, 0.5, d + 0.4, roof, x, 9.25, z, scene); });
 }
-{ // 건물 북동쪽 모서리 옆 작은 주차장(장애인 주차칸) — 전경 사진에 차가 서 있는 자리
-  flat(6.2, 9, 0x8d9096, 18.2, 12.5, 0.025);
-  for (let k = 0; k < 4; k++) box(1.2, 0.02, 2.6, 0x3a73c9, 15.9 + k * 1.55, 0.04, 9.8, scene);
-  [[16, 15.6, 0xffffff], [18.4, 15.6, 0x2a2d33], [16.6, 9.8, 0x9aa4b0]].forEach(([x, z, col]) => { const c = new THREE.Group(); box(1.8, 0.9, 4, col, 0, 0.7, 0, c); box(1.6, 0.7, 2.2, 0x26323d, 0, 1.45, -0.2, c); c.position.set(x, 0, z); scene.add(c); });
+/* 언덕: 동문 잔디광장·옆 차도·건물 북쪽 길(봉화산로45길 아래쪽)은 봉화산 자락을 깎아 평평하게 만든 땅이다
+   (사용자 설명 + 사진 + 카카오 스카이뷰, 2026-11-15). 북쪽(+x) 숲 쪽은 한 단 높고(HILL.h ≈ 4.5m), 깎인 면은 인공 암벽·옹벽.
+   - 잔디광장 옆 차도는 앞마당에서 끝나고, 정면이 지하주차장 입구다(출구·입구 칸이 차도와 일직선). 입구 건물 폭 = 잔디광장 끝 ~ 차도 끝.
+   - 지하주차장에 안 들어가는 차는 앞마당에서 왼쪽(-z)으로 꺾어 **건물 북쪽 면을 따라 서쪽으로 나간다**(봉화산로45길 쪽 출구 길, 보건소 앞).
+     (거리뷰 2026-11-15: 앞마당 서쪽 끝에서 서쪽을 보면 왼쪽 건물·오른쪽 계단 사이로 길이 이어짐, 나간 뒤 돌아본 사진도 같은 길)
+   - 계단은 그 출구 길 오른쪽(북쪽), 입구 건물 서쪽 끝 옆에서 숲·암벽 쪽(+x)으로 올라간다.
+   - 반원 데크(입구 지붕)는 위쪽 땅 높이. 데크 뒤 위쪽 길은 숲 속으로 이어진다(45길 윗부분, 연결은 줄여 그림).
+   - 차도 오른쪽(+z) 아파트 쪽은 옹벽 + 흰 난간(아파트 땅이 높음). 가까운 범위(NEAR)만 높인다 */
+const PK = { x: ROAD.north, z0: 8.5, z1: ROAD.east + 3.5 };      // 주차장 입구 앞면(x)과 폭(z): 잔디광장 끝 ~ 차도 끝
+const HILL = { h: 1.5, rockX: ROAD.north + 2.7, roadX: ROAD.north + 10.5, stairZ0: 2, stairZ1: 6, stairX1: ROAD.north + 6.3, z1: PK.z1 + 1.5 };
+const hillY = (x, z) => {   // 그 자리 땅 높이(나무를 올릴 때)
+  if (x >= NEAR.x1 || z <= NEAR.z0 || z >= HILL.z1) return 0;
+  const x0 = z < HILL.stairZ0 ? HILL.rockX : z < HILL.stairZ1 ? HILL.stairX1 : z < PK.z0 ? HILL.rockX : PK.x;
+  return x > x0 ? HILL.h : 0;
+};
+const wallTex = canvasTex(128, 64, (c, w, h) => { c.fillStyle = '#c9c4ba'; c.fillRect(0, 0, w, h); c.strokeStyle = '#a9a398'; c.lineWidth = 2; for (let y = 0; y <= h; y += 16) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); } for (let y = 0; y < h; y += 16) for (let x = (y / 16) % 2 ? 0 : 16; x < w; x += 32) { c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 16); c.stroke(); } });
+wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.repeat.set(12, 1);
+const wallM = new THREE.MeshLambertMaterial({ map: wallTex });
+{
+  const H = HILL.h;
+  const rock = canvasTex(256, 128, (c, w, h) => {   // 인공 암벽: 베이지·회색 바위 덩어리
+    c.fillStyle = '#b9b2a4'; c.fillRect(0, 0, w, h);
+    for (let n = 0; n < 90; n++) { const x = rnd() * w, y = rnd() * h, r = 6 + rnd() * 18; c.fillStyle = ['#cfc8ba', '#a69e8f', '#d9d3c7', '#958d7f'][n % 4]; c.beginPath(); c.ellipse(x, y, r * 1.3, r, rnd() * 3, 0, Math.PI * 2); c.fill(); }
+    c.strokeStyle = 'rgba(70,64,55,.35)'; c.lineWidth = 2; for (let n = 0; n < 26; n++) { c.beginPath(); const x = rnd() * w; c.moveTo(x, 0); c.lineTo(x + (rnd() - .5) * 30, h); c.stroke(); }
+  });
+  rock.wrapS = THREE.RepeatWrapping; rock.repeat.set(30, 1);
+  const top = M(0x7da35a), side = M(0xb3ab9a), rockM = new THREE.MeshLambertMaterial({ map: rock });
+  // 높은 땅 덩어리 4개(면 순서 +x, -x, 위, 아래, +z, -z)
+  const blk = (x0, z0, z1, mats) => { const x1 = NEAR.x1, m = box(x1 - x0, H, z1 - z0, mats, (x0 + x1) / 2, H / 2, (z0 + z1) / 2, scene); m.castShadow = false; };
+  blk(HILL.rockX, NEAR.z0, HILL.stairZ0, [side, rockM, top, side, wallM, side]);      // 건물 뒤 숲: 출구 길 쪽 암벽(인공폭포 쪽)
+  blk(HILL.stairX1, HILL.stairZ0, HILL.stairZ1, [side, wallM, top, side, side, side]); // 계단 위
+  blk(HILL.rockX, HILL.stairZ1, PK.z0, [side, wallM, top, side, side, wallM]);         // 계단과 입구 건물 사이 화단 옹벽
+  blk(PK.x, PK.z0, HILL.z1, [side, wallM, top, side, wallM, wallM]);                   // 입구 건물·데크·아파트 쪽(앞면은 입구 그림이 덮음)
+  // 출구 길(건물 북쪽 면 따라 서쪽으로): 앞마당 끝(z 6.9)에서 잠깐 평평하다가 오르막(거리뷰: 서쪽으로 올라감) → 위쪽 땅 높이로 서쪽 끝까지.
+  // 높아진 길은 둑(옹벽)으로 받치고, 건물 쪽 면은 옹벽. 47길은 북쪽 끝에서 이 길 높이까지 오르막으로 만난다
+  const EX = { x0: ROAD.north - 2.5, x1: ROAD.north + 2.5, zLow: 3, zTop: -12, zEnd: NEAR.z0 };
+  flat(5, 6.9 - EX.zLow, asphalt, ROAD.north, (6.9 + EX.zLow) / 2, 0.02);
+  const slope = (cx, cy, cz, len, wid, axis, ang) => {   // 기울어진 아스팔트 판(axis 'x' 또는 'z' 방향으로 오름)
+    const g = new THREE.Group(), p = new THREE.Mesh(new THREE.PlaneGeometry(axis === 'x' ? len : wid, axis === 'x' ? wid : len), asphalt);
+    p.rotation.x = -Math.PI / 2; p.receiveShadow = true; g.add(p); g.position.set(cx, cy, cz);
+    if (axis === 'x') g.rotation.z = ang; else g.rotation.x = ang; scene.add(g);
+  };
+  const tri = (pts, rotY, pos) => {   // 오르막 옆 세모 옹벽(pts: [가로, 높이] 세 점)
+    const s = new THREE.Shape(); s.moveTo(...pts[0]); s.lineTo(...pts[1]); s.lineTo(...pts[2]); s.closePath();
+    const m = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshLambertMaterial({ map: wallTex, side: THREE.DoubleSide })); m.rotation.y = rotY; m.position.set(...pos); scene.add(m);
+  };
+  const exLen = EX.zLow - EX.zTop;
+  slope(ROAD.north, H / 2 + 0.02, (EX.zLow + EX.zTop) / 2, Math.hypot(exLen, H), 5, 'z', Math.atan2(H, exLen));
+  tri([[-EX.zLow, 0], [-EX.zTop, 0], [-EX.zTop, H]], Math.PI / 2, [EX.x0, 0, 0]);                     // 건물 쪽 세모 옹벽
+  { const m = box(5, H, EX.zTop - EX.zEnd, [side, wallM, asphalt, side, side, side], ROAD.north, H / 2, (EX.zTop + EX.zEnd) / 2, scene); m.castShadow = false; }
+  toBg(flat(5, 51, asphalt, ROAD.north, EX.zEnd - 25.5, H + 0.02));                                    // 먼 쪽(흐린 레이어)
+  // 봉화산로47길: 봉화산로 ~ x 8 평평, x 8 ~ 출구 길 오르막
+  const w0 = 8, wz = ROAD.west;
+  flatBoth(w0 - ROAD.south, 5, asphalt, (w0 + ROAD.south) / 2, wz);
+  slope((w0 + EX.x0) / 2, H / 2 + 0.02, wz, Math.hypot(EX.x0 - w0, H), 5, 'x', Math.atan2(H, EX.x0 - w0));
+  [wz - 2.5, wz + 2.5].forEach(z => tri([[w0, 0], [EX.x0, 0], [EX.x0, H]], 0, [0, 0, z]));
+  // 위쪽 길: 데크 뒤(옥상 사진의 '30' 길) — 서쪽 끝은 숲 속으로 + 데크 쪽 보도
+  const up = H + 0.02, rx = HILL.roadX + 2.75, rz0 = -15;
+  flat(5.5, HILL.z1 - rz0, asphalt, rx, (rz0 + HILL.z1) / 2, up);
+  flat(0.9, HILL.z1 - HILL.stairZ0, walkM, HILL.roadX - 0.45, (HILL.stairZ0 + HILL.z1) / 2, up + 0.005);
+  for (let z = rz0 + 1; z < HILL.z1 - 1; z += 3.4) box(0.18, 0.02, 1.6, yellowM, rx, up + 0.02, z + 0.8, scene);
+  box(5.5, 0.4, 0.15, 0xe6e6e6, rx, up + 0.2, HILL.z1 - 0.1, scene);                 // 길 끝 가드레일(그 너머는 아파트 단지 쪽)
+  // 차도 오른쪽(아파트 쪽) 옹벽 + 흰 난간
+  const fx0 = -8, fx1 = PK.x, fz = ROAD.east + 3.6, L = fx1 - fx0, white = M(0xf2f2ee);
+  box(L, 0.8, 0.3, wallM, (fx0 + fx1) / 2, 0.4, fz, scene);
+  [1.0, 1.3].forEach(y => box(L, 0.05, 0.06, white, (fx0 + fx1) / 2, y, fz, scene));
+  for (let x = fx0 + 0.6; x < fx1; x += 1.6) box(0.12, 0.6, 0.12, white, x, 1.1, fz, scene);
 }
-{ // 지하주차장 입구: 잔디광장 길이 북쪽 길과 만나는 곳의 흰 타원 지붕(검은 띠 무늬) + 아래로 내려가는 경사로 — 나무위키 전경 사진·위성사진의 그 구조물
-  const g = new THREE.Group(), white = new THREE.MeshLambertMaterial({ color: 0xf4f4f0 });
-  const slat = canvasTex(64, 64, (c, w, h) => { c.fillStyle = '#f4f4f0'; c.fillRect(0, 0, w, h); c.fillStyle = '#3a3f46'; for (let x = 6; x < w; x += 14) c.fillRect(x, 8, 5, h - 16); });
-  slat.wrapS = THREE.RepeatWrapping; slat.repeat.set(3, 1);
-  const roof = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.35, 40), [new THREE.MeshLambertMaterial({ color: 0xdcdcd6 }), new THREE.MeshLambertMaterial({ map: slat }), white]);
-  roof.scale.set(4.6, 1, 6.8); roof.position.y = 2.8; roof.castShadow = true; g.add(roof);
-  const ramp = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 10), M(0x2f3236)); ramp.rotation.x = -Math.PI / 2; ramp.position.set(0, 0.035, 0); g.add(ramp);
-  for (let i = 0; i < 4; i++) box(2.8, 0.02, 0.35, 0xe8b830, 0, 0.05, -3.5 + i * 2.3, g);
-  [-1.75, 1.75].forEach(x => box(0.3, 1.0, 9.6, 0xd6d1c6, x, 0.5, 0.2, g));
-  [[-1.75, -4.4], [1.75, -4.4], [-1.75, 4.6], [1.75, 4.6]].forEach(([x, z]) => box(0.18, 2.6, 0.18, 0x8b9099, x, 1.5, z, g));
-  const pTex = canvasTex(64, 64, (c, w, h) => { c.fillStyle = '#1f5fbf'; c.fillRect(0, 0, w, h); c.fillStyle = '#fff'; c.font = '700 48px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('P', w / 2, h / 2 + 3); });
-  box(0.12, 2.6, 0.12, 0x8b9099, -2.6, 1.3, 6.4, g); box(0.08, 1, 1, new THREE.MeshLambertMaterial({ map: pTex }), -2.6, 2.7, 6.4, g);
-  g.position.set(ROAD.north + 5.2, 0, 15.5); scene.add(g);
+{ // 지하주차장 입구: 깎인 면에 박힌 낮은 회색 건물 — 왼쪽(-z)은 가로 줄무늬 벽, 오른쪽(차도와 일직선)에 출구·입구 두 칸(사진 6·스카이뷰 사진 3)
+  const H = HILL.h, W = PK.z1 - PK.z0, zc = (PK.z0 + PK.z1) / 2;
+  const u = z => (z - PK.z0) / W;                     // 폭 안의 비율(0 = 서쪽 끝)
+  const a0 = u(ROAD.east - 3) + 0.005, a2 = u(ROAD.east + 3) - 0.005, a1 = (a0 + a2) / 2;   // 출구 칸 [a0,a1] · 입구 칸 [a1,a2]
+  const face = canvasTex(1728, 144, (c, w, h) => {
+    c.fillStyle = '#6b7078'; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#80868e'; for (let y = 50; y < h; y += 9) c.fillRect(0, y, w * (a0 - 0.02), 4);          // 가로 줄무늬 벽
+    c.fillStyle = '#41464d'; c.fillRect(0, 0, w, 44);                                                       // 위 짙은 띠(표지)
+    [[a0, a1 - 0.006], [a1 + 0.006, a2]].forEach(([a, b]) => { c.fillStyle = '#16181b'; c.fillRect(w * a, 48, w * (b - a), h - 56); c.fillStyle = '#2c3036'; c.fillRect(w * a, 48, w * (b - a), 9); });
+    for (let x = w * a0; x < w * a2; x += 16) { c.fillStyle = (x / 16 | 0) % 2 ? '#e8b830' : '#1b1b1b'; c.fillRect(x, h - 9, 16, 9); }   // 바닥 노랑·검정 띠
+    [a0 - 0.006, a1, a2 + 0.004].forEach(a => { c.fillStyle = '#8d939b'; c.fillRect(w * a - 6, 44, 12, h - 44); });
+    c.textBaseline = 'middle'; c.font = '700 26px "IBM Plex Sans KR", sans-serif';
+    const sign = (x, ico, txt) => { c.fillStyle = '#d8342c'; c.beginPath(); c.arc(x, 22, 13, 0, Math.PI * 2); c.fill(); c.fillStyle = '#fff'; c.fillText(ico, x - 7, 23); c.fillText(txt, x + 20, 23); };
+    sign(w * (a0 + 0.02), '−', '출구 OUT'); sign(w * (a1 + 0.025), '↓', '입구 IN');
+    c.fillStyle = '#fff'; c.font = '700 40px sans-serif'; c.fillText('P', w * (a0 - 0.12), 23); c.font = '600 17px "IBM Plex Sans KR", sans-serif'; c.fillText('제한높이 2.4m', w * (a0 - 0.12) + 34, 24);
+  });
+  const fm = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshLambertMaterial({ map: face })); fm.rotation.y = -Math.PI / 2; fm.position.set(PK.x - 0.02, H / 2, zc); fm.receiveShadow = true; scene.add(fm);
+  box(0.5, 0.12, W, 0x8d939b, PK.x + 0.2, H + 0.04, zc, scene);                                         // 데크 앞 턱
 }
-{ // 숲 가장자리 돌 계단식 단상(전경 사진의 건물 북쪽 돌 테라스)
-  const g = new THREE.Group(), stone = M(0xcfc8b8), dark = M(0xb3ab9a);
-  for (let s = 0; s < 4; s++) { const t = new THREE.Mesh(new THREE.CylinderGeometry(6.5 - s * 1.3, 6.5 - s * 1.3, 0.45, 28, 1, false, 0, Math.PI), s % 2 ? dark : stone); t.position.y = 0.225 + s * 0.45; t.castShadow = t.receiveShadow = true; g.add(t); }
-  [[2, -5.5], [5.2, -3.4], [6, 1.5], [3.4, 5.2]].forEach(([x, z], i) => { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7 + i * 0.12), M(0x8f8a80)); r.position.set(x, 0.5, z); r.castShadow = true; g.add(r); });
-  g.position.set(ROAD.north + 5.5, 0, -2); scene.add(g);
+{ // 반원 데크: 주차장 입구 지붕 = 위쪽 땅 높이. 곧은 쪽이 앞마당, 둥근 쪽이 위쪽 길. 돌 포장 + 유리 난간 + 가장자리 화단 + 앞 난간 현수막 — 사진 7·스카이뷰
+  const H = HILL.h, zc = (PK.z0 + PK.z1) / 2, rz = (PK.z1 - PK.z0) / 2, rx = HILL.roadX - 1.5 - PK.x, y = H + 0.04;
+  const pts = []; for (let i = 0; i <= 36; i++) { const a = -Math.PI / 2 + Math.PI * i / 36; pts.push([PK.x + rx * Math.cos(a), zc + rz * Math.sin(a)]); }
+  const sh = new THREE.Shape(); sh.moveTo(pts[0][0], -pts[0][1]); pts.slice(1).forEach(([x, z]) => sh.lineTo(x, -z)); sh.closePath();
+  const tile = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#cfcbc2'; c.fillRect(0, 0, w, h); c.strokeStyle = '#b4afa4'; c.lineWidth = 2; for (let i = 0; i <= w; i += 16) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i, h); c.moveTo(0, i); c.lineTo(w, i); c.stroke(); } });
+  tile.wrapS = tile.wrapT = THREE.RepeatWrapping; tile.repeat.set(0.35, 0.35);
+  const deck = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshLambertMaterial({ map: tile })); deck.rotation.x = -Math.PI / 2; deck.position.y = y; deck.receiveShadow = true; scene.add(deck);
+  const glass = new THREE.MeshLambertMaterial({ color: 0xbfe3ea, transparent: true, opacity: 0.4 }), railM = M(0xc9ced4), soil = M(0x6f8f4a), shrub = [M(0xc8553d), M(0x4f8a3c), M(0xd9793a)];
+  const rail = (x0, z0, x1, z1) => { const l = Math.hypot(x1 - x0, z1 - z0), a = Math.atan2(x1 - x0, z1 - z0); const g = box(0.06, 0.42, l, glass, (x0 + x1) / 2, y + 0.21, (z0 + z1) / 2, scene); g.rotation.y = a; g.castShadow = false; const r = box(0.08, 0.05, l, railM, (x0 + x1) / 2, y + 0.44, (z0 + z1) / 2, scene); r.rotation.y = a; };
+  for (let i = 0; i < pts.length - 1; i++) if (i < 2 || i > 5) rail(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);   // 서쪽 끝 한 곳은 계단에서 들어오는 길이라 비움
+  rail(PK.x + 0.05, PK.z0, PK.x + 0.05, PK.z1);                            // 앞 난간
+  for (let i = 3; i < pts.length - 2; i += 2) {                            // 둥근 가장자리 화단
+    if (i <= 6) continue;
+    const [x, z] = pts[i], k = 0.88, px = PK.x + (x - PK.x) * k, pz = zc + (z - zc) * k;
+    box(0.9, 0.18, 0.9, soil, px, y + 0.09, pz, scene);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.42, 7, 5), shrub[i % 3]); s.position.set(px, y + 0.42, pz); s.castShadow = true; scene.add(s);
+  }
+  [[PK.x + 2.4, zc - 2.4], [PK.x + 2.4, zc + 2.4], [PK.x + 4.4, zc]].forEach(([x, z], i) => { const b = box(0.5, 0.25, 1.6, 0x8a6d5c, x, y + 0.13, z, scene); if (i === 2) b.rotation.y = Math.PI / 2; });   // 벤치
+  // 앞 난간 현수막: 행사 때 문구, 비우면 현수막 없음
+  const DECK_BANNER = '제1차 중랑AX 2030 전략포럼';
+  if (DECK_BANNER) {
+    const bw = Math.min(PK.z1 - PK.z0 - 2, 9), tx = canvasTex(1024, 72, (c, w, h) => {
+      c.fillStyle = '#ffffff'; c.fillRect(0, 0, w, h); c.fillStyle = '#1C7C38'; c.fillRect(0, 0, 70, h);
+      drawJNSymbol(c, 10, 8, 56);
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '400 46px "Black Han Sans", "IBM Plex Sans KR", sans-serif';
+      const parts = [['제1차 ', '#0d1730'], ['중랑AX 2030 ', '#106A3A'], ['전략포럼', '#0057A3']];
+      if (DECK_BANNER !== '제1차 중랑AX 2030 전략포럼') { c.fillStyle = '#0d1730'; c.fillText(DECK_BANNER, (w + 70) / 2, h / 2 + 2); return; }
+      const tot = parts.reduce((s, [t]) => s + c.measureText(t).width, 0); let x = (w + 70 - tot) / 2; c.textAlign = 'left';
+      parts.forEach(([t, col]) => { c.fillStyle = col; c.fillText(t, x, h / 2 + 2); x += c.measureText(t).width; });
+    });
+    const bmM = new THREE.MeshLambertMaterial({ map: tx, emissive: 0x000000, emissiveMap: tx }); bgLit.push([bmM, 0.4]);   // 밤에 은은히 밝게
+    const bm = new THREE.Mesh(new THREE.PlaneGeometry(bw, bw * 72 / 1024), bmM); bm.rotation.y = -Math.PI / 2; bm.position.set(PK.x - 0.03, y + 0.24, zc); bm.userData.noShadow = true; scene.add(bm);
+  }
 }
-{ // 산 위 타원 잔디 공원(전경 사진 오른쪽 위)
-  const t = new THREE.Mesh(new THREE.CircleGeometry(1, 36), M(0xcfc6b0)); t.rotation.x = -Math.PI / 2; t.scale.set(11.5, 7.5, 1); t.position.set(50, 0.05, -12); t.receiveShadow = true; scene.add(t);
-  const f = new THREE.Mesh(new THREE.CircleGeometry(1, 36), M(0x86b85a)); f.rotation.x = -Math.PI / 2; f.scale.set(10, 6.2, 1); f.position.set(50, 0.08, -12); f.receiveShadow = true; scene.add(f);
+{ // 계단: 출구 길 오른쪽(북쪽), 입구 건물 서쪽 옆에서 숲·암벽 쪽(+x)으로 — 거리뷰 사진
+  const H = HILL.h, n = 7, x0 = ROAD.north + 2.5, run = (HILL.stairX1 - x0) / n, z0 = HILL.stairZ0, z1 = HILL.stairZ1, stone = M(0xcfc8b8);
+  for (let k = 0; k < n; k++) { const xs = x0 + k * run, hh = H * (k + 1) / n; box(HILL.stairX1 - xs, hh, z1 - z0, stone, (xs + HILL.stairX1) / 2, hh / 2, (z0 + z1) / 2, scene); }
+  [z0 + 0.08, z1 - 0.08].forEach(z => { const hr = box(Math.hypot(HILL.stairX1 - x0, H), 0.06, 0.06, 0x8b9099, (x0 + HILL.stairX1) / 2, H / 2 + 0.5, z, scene); hr.rotation.z = Math.atan2(H, HILL.stairX1 - x0); });
+}
+{ // 앞마당: 잔디광장 끝 ~ 입구 건물 앞, 차도 끝까지 — 짙은 블록 포장, 바닥 글씨 '주차장'(직진 → 입구) · '출구'(왼쪽 → 45길), 장애인 주차칸(입구 건물 왼쪽 앞)
+  const x0 = 14.5, x1 = PK.x, z0 = 6.9, z1 = PK.z1;
+  const brick = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#4f535a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#5f646c'; c.lineWidth = 2; for (let y = 0; y <= h; y += 16) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); for (let x = (y / 16) % 2 ? 0 : 16; x < w; x += 32) { c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 16); c.stroke(); } } });
+  brick.wrapS = brick.wrapT = THREE.RepeatWrapping; brick.repeat.set(3, 7);
+  const brickM = new THREE.MeshLambertMaterial({ map: brick });
+  flat(x1 - x0, z1 - z0, brickM, (x0 + x1) / 2, (z0 + z1) / 2, 0.03);
+  flat(HILL.rockX - x1, PK.z0 - z0, brickM, (x1 + HILL.rockX) / 2, (z0 + PK.z0) / 2, 0.03);   // 입구 건물 서쪽 끝 앞(출구 길로 이어지는 곳)
+  const mark = (txt, x, z, rotY) => {   // 글자 + 화살표(화살표 방향 = 캔버스 오른쪽 → 그룹 회전으로 맞춤)
+    const t = canvasTex(512, 160, (c, w, h) => {
+      c.fillStyle = '#f1f1e8'; c.font = '700 84px "IBM Plex Sans KR", sans-serif'; c.textBaseline = 'middle'; c.fillText(txt, 16, h / 2 + 4);
+      const ax = 16 + c.measureText(txt).width + 30; c.fillRect(ax, h / 2 - 9, w - ax - 90, 18);
+      c.beginPath(); c.moveTo(w - 24, h / 2); c.lineTo(w - 96, h / 2 - 40); c.lineTo(w - 96, h / 2 + 40); c.fill();
+    });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.125), new THREE.MeshLambertMaterial({ map: t, transparent: true, opacity: 0.85, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; const g = new THREE.Group(); g.add(m); g.rotation.y = rotY; g.position.set(x, 0.045, z); scene.add(g);
+  };
+  mark('주차장', x1 - 3.4, ROAD.east + 1.4, 0);              // 입구 칸으로 직진
+  mark('출구', x1 - 2.2, ROAD.east - 6.5, Math.PI / 2);      // 출구 칸에서 나와 왼쪽(45길)으로
+  for (let k = 0; k < 3; k++) box(2.6, 0.02, 1.3, 0x3a73c9, x0 + 1.6, 0.05, z0 + 1.0 + k * 1.5, scene);   // 장애인 주차칸: 잔디광장 끝·건물 북동쪽 모서리 옆(거리뷰 사진)
+  [[x0 + 1.9, z0 + 1.0, 0xffffff], [x0 + 1.9, z0 + 2.5, 0xf4f4f0], [x1 - 2.6, z0 + 1.2, 0x2a2d33]].forEach(([x, z, col]) => { const c = new THREE.Group(); box(1.8, 0.9, 4, col, 0, 0.7, 0, c); box(1.6, 0.7, 2.2, 0x26323d, 0, 1.45, -0.2, c); c.position.set(x, 0, z); c.rotation.y = Math.PI / 2; scene.add(c); });
+}
+{ // 산 위 타원 잔디 공원(전경 사진 오른쪽 위) — 언덕 위
+  const t = new THREE.Mesh(new THREE.CircleGeometry(1, 36), M(0xcfc6b0)); t.rotation.x = -Math.PI / 2; t.scale.set(11.5, 7.5, 1); t.position.set(50, HILL.h + 0.05, -12); t.receiveShadow = true; scene.add(t);
+  const f = new THREE.Mesh(new THREE.CircleGeometry(1, 36), M(0x86b85a)); f.rotation.x = -Math.PI / 2; f.scale.set(10, 6.2, 1); f.position.set(50, HILL.h + 0.08, -12); f.receiveShadow = true; scene.add(f);
 }
 // 가로수: 봉화산로 메타세쿼이아 + 둥근 나무(가까운 것은 또렷, 먼 것은 흐린 레이어)
 const treeCone = new THREE.ConeGeometry(1.3, 6.5, 7), treeBall = new THREE.SphereGeometry(1.9, 8, 6), trunkG = new THREE.CylinderGeometry(0.18, 0.24, 1.6, 6);
 const trees = { cone: [], ball: [] };
-for (let z = -200; z <= 60; z += 4.5) { if (Math.abs(z - ROAD.east) < 4) continue; trees.cone.push([ROAD.south - 7.6, z]); if (Math.round(z / 4.5) % 2 === 0 && (z < -30 || z > 12)) trees.ball.push([ROAD.south + 6.9, z]); }   // 중앙광장 앞은 비워 둔다
+for (let z = -200; z <= 60; z += 4.5) { if (Math.abs(z - ROAD.east) < 4) continue; trees.cone.push([ROAD.south - 7.6, z]); if (Math.round(z / 4.5) % 2 === 0 && (z < -30 || z > 21)) trees.ball.push([ROAD.south + 6.9, z]); }   // 중앙광장 앞·슬로건 조형물 앞은 비워 둔다
 for (let n = 0; n < 420; n++) {   // 숲 가장자리: 북쪽 길 건너(북서)와 47길 너머 산자락을 나무로 채움
   const x = ROAD.north + 4 + rnd() * 60, z = -90 + rnd() * 92;
-  if (!(x > 24 && x < 40 && z > -10) && !(x > 20 && x < 40 && z > -34 && z < -18) && !(x > 37 && x < 63 && z > -21 && z < -3)) trees.ball.push([x, z]);   // 주차장 입구·단상·보건소·타원 공원 자리는 비움
+  if (!(x > 31.5 && x < 40 && z > -16) && !(x > 37 && x < 63 && z > -21 && z < -3)) trees.ball.push([x, z]);   // 위쪽 길·타원 공원 자리는 비움(예전 보건소 자리는 숲으로)
 }
+for (let n = 0; n < 70; n++) { const x = 40 + rnd() * 21, z = -2 + rnd() * 27; trees.ball.push([x, z]); }   // 위쪽 길 너머(데크 뒤) 숲
 for (let x = -18; x <= 18; x += 6) trees.ball.push([x, ROAD.west - 4.5]);
 for (let n = 0; n < 160; n++) { const a = rnd() * Math.PI * 2, r = 64 + rnd() * 100; trees.ball.push([Math.cos(a) * r, -7 + Math.sin(a) * r]); }
 function instanced(geo, mat, pts, y, sc, layer) {
   if (!pts.length) return; const im = new THREE.InstancedMesh(geo, mat, pts.length), o = new THREE.Object3D();
-  pts.forEach(([x, z], i) => { const s = sc * (0.85 + rnd() * 0.3); o.position.set(x, y * s, z); o.scale.setScalar(s); o.updateMatrix(); im.setMatrixAt(i, o.matrix); });
+  pts.forEach(([x, z], i) => { const s = sc * (0.85 + rnd() * 0.3); o.position.set(x, y * s + hillY(x, z), z); /* 언덕 위 나무는 한 단 위에 */ o.scale.setScalar(s); o.updateMatrix(); im.setMatrixAt(i, o.matrix); });
   im.castShadow = !layer; scene.add(layer ? toBg(im) : im);
 }
 const coneM = M(0x3f7a3a), ballM = M(0x5c9a45), trunkM = M(0x6b4a2e);
@@ -276,7 +406,7 @@ function makeCar(lane) {
   g.userData = lane; scene.add(g); cars.push(g); return g;
 }
 for (let i = 0; i < 4; i++) { const dir = i % 2 ? -1 : 1; makeCar({ axis: 'z', dir, lanePos: ROAD.south - dir * (i < 2 ? 1.2 : 3.2), pos: -60 + i * 30, v: 10 + i * 1.5, min: NEAR.z0, max: NEAR.z1 }); }
-for (let i = 0; i < 2; i++) { const dir = i % 2 ? -1 : 1; makeCar({ axis: 'x', dir, lanePos: ROAD.east + dir * 0.9, pos: 0 + i * 20, v: 4 + i * 1.5, min: ROAD.south, max: ROAD.north }); }
+for (let i = 0; i < 2; i++) { const dir = i % 2 ? -1 : 1; makeCar({ axis: 'x', dir, lanePos: ROAD.east + dir * 0.9, pos: 0 + i * 20, v: 4 + i * 1.5, min: ROAD.south, max: ROAD.north - 3.5 }); }   // 차도 끝(앞마당)에서 되돌아감
 function updateCars(dt) {
   cars.forEach(c => {
     const u = c.userData; u.pos += u.v * u.dir * dt;
@@ -324,10 +454,11 @@ const plaza = new THREE.Group(); scene.add(plaza);
   for (let x = xl + 1; x < xr; x += 4.2) if (Math.abs(x - XC) > 2) { const b = cyl(0.12, 0.12, 0.7, 0x2a2d33, 8); b.position.set(x, 0.35, z1 + 0.3); scene.add(b); }   // 볼라드
 }
 // 펜스(안전 가림막): 북쪽·서쪽만. 봉화산로(중앙광장)·잔디광장 쪽은 열어 둔다
-const fenceMat = M(0x2f6c9e);
-box(0.2, 2, PAD.z1 - PAD.z0, fenceMat, PAD.x1, 1, (PAD.z0 + PAD.z1) / 2, scene);
-box(PAD.x1 - PAD.x0, 2, 0.2, fenceMat, (PAD.x0 + PAD.x1) / 2, 1, PAD.z0, scene);
-[[PAD.x0, PAD.z0, C.c3 - 0.5], [PAD.x0, C.c8 + 0.2, PAD.z1]].forEach(([x, z0, z1]) => box(0.2, 2, z1 - z0, fenceMat, x, 1, (z0 + z1) / 2, scene));   // 봉화산로 쪽은 안마당 앞만 비움
+// 완공(출범) 때 땅속으로 내려가며 사라진다(complete())
+const fenceMat = M(0x2f6c9e), fence = new THREE.Group(); scene.add(fence);
+box(0.2, 2, PAD.z1 - PAD.z0, fenceMat, PAD.x1, 1, (PAD.z0 + PAD.z1) / 2, fence);
+box(PAD.x1 - PAD.x0, 2, 0.2, fenceMat, (PAD.x0 + PAD.x1) / 2, 1, PAD.z0, fence);
+[[PAD.x0, PAD.z0, C.c3 - 0.5], [PAD.x0, C.c8 + 0.2, PAD.z1]].forEach(([x, z0, z1]) => box(0.2, 2, z1 - z0, fenceMat, x, 1, (z0 + z1) / 2, fence));   // 봉화산로 쪽은 안마당 앞만 비움
 // 현장 안내판(봉화산로 쪽, 중앙광장 옆)
 const signTex = canvasTex(512, 256, (g, w, h) => {
   g.fillStyle = '#0d1730'; g.fillRect(0, 0, w, h);
@@ -433,7 +564,7 @@ const blocks = DEFS.map(d => {
   b.visible = false; site.add(b); return b;
 });
 
-/* 마감(구청장 몫): 옥상 → 탑부 격자 프레임 → 옥탑(양 끝 둥근 드럼) → 중랑구 마크 → 옥상정원·안뜰 정원 → 현관 캐노피 → 현수막 → 깃발 */
+/* 마감(구청장 몫): 옥상 → 탑부 격자 프레임 → 옥탑(양 끝 둥근 드럼) → 중랑구 마크 → 옥상정원·안뜰 정원 → 현관 캐노피 → 현수막 → 슬로건 조형물 → 깃발 */
 const crown = [], glowMats = [];
 const piece = (g, home, extra) => { g.userData = Object.assign({ home }, extra || {}); crown.push(g); return g; };
 const stoneM = M(0xe7e4dd), stoneD = M(0xcdc8be), slabM = M(0xb9bcc0);
@@ -571,6 +702,41 @@ const markMat = (tex) => { const m = new THREE.MeshLambertMaterial({ map: tex, t
   bannerMat = new THREE.MeshLambertMaterial({ map: tx, emissive: 0x000000, emissiveMap: tx });
   const m = new THREE.Mesh(new THREE.PlaneGeometry(4.4, hgt), bannerMat); m.userData.noShadow = true; g.add(m);
   piece(g, new THREE.Vector3(XC, (yAt(2) + MAIN_TOP) / 2 - 0.1, ZF + 0.05));
+}
+{ // 슬로건 조형물 '나의 자랑 [심볼] 우리 중랑': 잔디광장 봉화산로 쪽 끝, 큰길을 보게(사진 1~3).
+  // 흰 앞면 + 색 옆면 입체 글자(같은 글자판을 여러 장 겹쳐 두께) + 유리판 받침. 실물(글자 약 1.2m)보다 3배쯤 크게.
+  // 구청장 확인 뒤 글자가 한 덩어리씩 땅에서 솟아오름(placeFast의 rise)
+  const g = new THREE.Group(), parts = [], Hl = 1.2, base = 0.3, LAYERS = 6, DEPTH = 0.06;
+  const words = [['나의', '#1f8a4c'], ['자랑', '#a3237f'], [null, '#8f99a6'], ['우리', '#1e9b7f'], ['중랑', '#1a6fd0']];
+  const FONT = '400 200px "Black Han Sans", "IBM Plex Sans KR", sans-serif';
+  const meas = document.createElement('canvas').getContext('2d'); meas.font = FONT;
+  const symTint = (c, col, sz) => {   // 중랑 심볼을 한 색으로
+    const t = document.createElement('canvas'); t.width = t.height = sz; const tc = t.getContext('2d');
+    drawJNSymbol(tc, sz * 0.06, sz * 0.03, sz * 0.9); tc.globalCompositeOperation = 'source-in'; tc.fillStyle = col; tc.fillRect(0, 0, sz, sz);
+    c.drawImage(t, 0, 0);
+  };
+  const tex = (txt, cw, front, col) => canvasTex(cw, 256, (c, w, h) => {
+    if (txt === null) { symTint(c, front ? '#ffffff' : col, 256); return; }
+    c.font = FONT; c.textAlign = 'center'; c.textBaseline = 'middle';
+    if (front) { c.lineWidth = 8; c.strokeStyle = '#c3c9d1'; c.strokeText(txt, w / 2, h / 2 + 6); c.fillStyle = '#ffffff'; }
+    else { c.lineWidth = 8; c.strokeStyle = col; c.strokeText(txt, w / 2, h / 2 + 6); c.fillStyle = col; }
+    c.fillText(txt, w / 2, h / 2 + 6);
+  });
+  const sizes = words.map(([t]) => t === null ? 256 : Math.ceil(meas.measureText(t).width + 24));
+  const gap = 0.3, widths = sizes.map(s => Hl * s / 256), total = widths.reduce((a, b) => a + b, 0) + gap * (words.length - 1);
+  const zc = (PAD.z1 + ROAD.east - 3.4) / 2; let z = zc - total / 2;
+  words.forEach(([t, col], i) => {
+    const pg = new THREE.Group(), w = widths[i], fm = markMat(tex(t, sizes[i], true, col)), sm = new THREE.MeshLambertMaterial({ map: tex(t, sizes[i], false, col), transparent: true, alphaTest: 0.3 });
+    for (let k = LAYERS; k >= 0; k--) {   // 뒤(+x)부터 색 판, 맨 앞(-x)이 흰 판
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, Hl), k ? sm : fm); m.rotation.y = -Math.PI / 2; m.position.x = k * DEPTH; m.userData.noShadow = true; pg.add(m);
+    }
+    const y = base + Hl / 2; pg.position.set(0, y, z + w / 2); g.add(pg); parts.push({ g: pg, y });
+    z += w + gap;
+  });
+  const glass = new THREE.MeshLambertMaterial({ color: 0xbfe3ea, transparent: true, opacity: 0.35 });
+  const gb = box(0.1, 0.62, total + 0.5, glass, LAYERS * DEPTH / 2, 0.31, zc, g); gb.userData.noShadow = true;
+  box(0.2, 0.06, total + 0.5, 0x8b9099, LAYERS * DEPTH / 2, 0.03, zc, g);
+  piece(g, new THREE.Vector3(-15.6, 0, 0), { rise: parts });   // 잔디 큰길 쪽 가장자리(굴착기 자리 -12.5보다 앞)
 }
 { // 깃발 3개(슬로건 3색) — 잔디광장 오른쪽 앞
   const g = new THREE.Group(), flags = [];
@@ -788,6 +954,18 @@ function pickCarrier() {
 function placeCell(i, c, done) { if (c.kind === 'ground') growInPlace(i, done); else if (c.kind === 'heli') placeByHeli(i, done); else if (c.kind === 'ladder') placeByLadder(i, done); else placeByCrane(i, c, done); }
 function placeFast(obj, delay, done) {
   const h = obj.userData.home;
+  if (obj.userData.rise) {   // 슬로건 조형물: 자리에 두고 글자 덩어리가 하나씩 땅에서 솟아오름
+    const parts = obj.userData.rise, step = REDUCED ? 0 : 280;
+    setTimeout(() => {
+      parts.forEach(p => { p.g.position.y = p.y - 2.2; });
+      obj.visible = true; obj.position.copy(h);
+      parts.forEach((p, i) => setTimeout(() => {
+        const wp = new THREE.Vector3(); p.g.getWorldPosition(wp); wp.y = 0.2; burst(wp, { n: 12, color: 0x8a6a45, speed: 2.4 });
+        tween(0.55, k => { p.g.position.y = p.y - 2.2 * (1 - ease.back(k)); }, () => { p.g.position.y = p.y; if (i === parts.length - 1) done && done(); });
+      }, i * step));
+    }, REDUCED ? 0 : delay);
+    return;
+  }
   setTimeout(() => {
     obj.visible = true; obj.position.set(h.x, h.y + 16, h.z);
     tween(0.6, k => { obj.position.y = h.y + 16 * (1 - ease.in(k)); }, () => { obj.position.copy(h); if (obj.userData.floor) land(obj); else burst(h.clone(), { n: 24, speed: 4 }); done && done(); });
@@ -1107,7 +1285,7 @@ function arrive(p) {
   if (state.done || !p) return;
   if (state.mayor) {   // 마감·출범 중 들어온 사람: 칸·장비는 없이 알림·숫자·일지만
     state.count++; if (p.role) state.key++;
-    toast({ who: p.role ? `중요 관계자 · ${ROLE_LABEL[p.role] || ''}` : '', dept: p.dept || '', name: p.name || ROLE_LABEL[p.role] || '참석자', rank: p.name ? (p.rank || '') : '', what: '함께 출범을 축하합니다', key: !!p.role });
+    toast({ who: p.role ? (ROLE_LABEL[p.role] || '') : '', dept: p.dept || '', name: p.name || ROLE_LABEL[p.role] || '참석자', rank: p.name ? (p.rank || '') : '', what: '함께 출범을 축하합니다', key: !!p.role });
     logLine(...logParts(p), '등록', !!p.role, p.at, logDept(p)); hud(); return;
   }
   announce(p);
@@ -1146,14 +1324,14 @@ function announce(p) {
   if (key) state.key++;
   const roleName = ROLE_LABEL[p.role] || '';
   const building = placed + queue.length < TOTAL;   // 아직 올릴 칸이 남았나(줄 선 칸 포함)
-  const parts = [building ? '구청 두 칸 시공' : '마감 자재 준비'];
+  const parts = [building ? '구청 한 칸 시공' : '마감 자재 준비'];   // 실제로는 2칸이지만 문구는 '한 칸'(사용자 결정 2026-11-15)
   let extra = building ? '시공' : '자재';
   const r = reward(p, false);
   if (r) { parts.push(r[0]); extra = r[1]; }
   if (fillCrew() && !key) parts.push('인부 1명 합류');
 
   // 동명이인은 소속으로만 구별 → 소속과 이름을 늘 같이. 직위는 비어 있을 수 있음(직접 입력)
-  toast({ who: key ? `중요 관계자 · ${roleName}` : '', dept: p.dept || '', name: p.name || roleName || '참석자', rank: p.name ? (p.rank || '') : '', what: parts.join(' · '), key });
+  toast({ who: key ? roleName : '', /* 이름 위 노란 표시: 직책만 */ dept: p.dept || '', name: p.name || roleName || '참석자', rank: p.name ? (p.rank || '') : '', what: parts.join(' · '), key });
   logLine(...logParts(p), extra, key, p.at, logDept(p));
   if (key) cheerAll();
   hud();
@@ -1171,7 +1349,7 @@ function mayorArrive() {
   // 줄 서 있던 등록은 애니메이션 없이 숫자에만 반영
   queue.splice(0);   // 줄 서 있던 칸은 아래에서 남은 칸과 함께 한꺼번에(사람은 이미 등록 때 셈)
   state.count++;
-  toast({ who: '관리자 확인 완료', name: '구청장님 도착', sir: false, what: '마감 공사를 시작합니다', key: true, mark: '★', center: true });
+  toast({ name: '구청장님 도착', sir: false, what: '마감 공사를 시작합니다', key: true, mark: '★', center: true });
   logLine('구청장님 도착', '출범', true);
   cheerAll();
   for (let i = 0; i < 6; i++) makeWorker(true);
@@ -1291,8 +1469,9 @@ function complete(instant) {
     lamps.forEach(l => { l.lm.emissive.setRGB(0.4 + 0.6 * k, 0.36 + 0.6 * k, 0.23 + 0.5 * k); l.beamMat.opacity = 0.16 * k; });
   };
   const camTo = k => { camH = 35 - 6 * ease.inOut(k); lookY = 4 + 3 * ease.inOut(k); };
-  if (instant) { toNight(1); ghost.visible = false; camSwing = 0.32; camTo(1); }
+  if (instant) { toNight(1); ghost.visible = false; camSwing = 0.32; camTo(1); fence.visible = false; }
   else {
+    tween(1.6, k => { fence.position.y = -2.1 * ease.inOut(k); }, () => { fence.visible = false; });   // 공사 펜스: 땅속으로 내려가며 사라짐
     tween(6, k => { camSwing = 0.1 + 0.22 * ease.inOut(k); });   // 축하하는 동안 카메라가 조금 더 크게 돈다
     tween(4, toNight, () => { ghost.visible = false; });
     tween(5, camTo);
