@@ -242,7 +242,7 @@ body.dusk #skyDusk{opacity:1}
         <div><button type="button" class="go" id="bGo">확인 · 완공 시작</button><button type="button" id="bNo">취소</button></div>
       </div>
       <div class="row"><button type="button" id="bReset" style="grid-column:span 3">처음부터 다시</button></div>
-      <p class="note">단축키 1: +1 · 2~6: 구의원·국장·부구청장·발제자·패널 · M: 구청장 · H: 숨기기</p>
+      <p class="note">단축키 1: +1 · 2~6: 구의원·국장·부구청장·발제자·패널 · H: 숨기기 · 구청장: 버튼 또는 숨은 키 순서</p>
     </div>
   </div>
 </section>
@@ -352,7 +352,7 @@ function tools(site, token) {
     // 관리 모드: 가짜 참석자 버튼은 숨기고 구청장 확인만. 확인은 저장소에 기록 → 폴링으로 화면 연출
     [$('b1').parentElement, document.querySelector('#demo .sub'), document.querySelector('#demo .r5'), $('bReset').parentElement].forEach(el => el && (el.hidden = true));
     $('demo').querySelector('header span').textContent = '관리 도구 · H로 숨기기';
-    $('demo').querySelector('.note').textContent = '단축키 M: 구청장 도착 · H: 숨기기. 등록은 참석자 휴대폰에서 자동으로 들어옵니다.';
+    $('demo').querySelector('.note').textContent = 'H: 숨기기. 구청장 도착은 버튼(확인 창) 또는 숨긴 채 정해 둔 키 순서. 등록은 참석자 휴대폰에서 자동으로 들어옵니다.';
   }
   const SUR = '김이박최정강조윤장임한오서신권황안송류홍'.split('');
   const GIVEN = ['가람', '나래', '도윤', '서연', '하준', '지우', '민서', '현우', '수아', '예준', '지호', '채원', '유진', '승민', '다은', '태윤', '소희', '재원', '은채', '시우'];
@@ -372,19 +372,38 @@ function tools(site, token) {
   document.querySelectorAll('[data-role]').forEach(b => b.onclick = () => keyArrive(b.dataset.role));
   $('bMayor').onclick = askMayor;
   $('bNo').onclick = () => { $('confirm').hidden = true; };
-  $('bGo').onclick = async () => {
+  const confirmMayor = async () => {
     $('confirm').hidden = true;
+    if (state.mayor) return;
     if (!admin) return mayorArrive();
     try { await A.rpc('ax_set_mayor', { p_token: token, p_on: true }); }
     catch (e) { alert('구청장 확인을 보내지 못했습니다: ' + e.message); }
   };
+  $('bGo').onclick = confirmMayor;
   $('bReset').onclick = () => location.reload();
   $('demoMin').onclick = () => { const d = $('demo'); d.classList.toggle('min'); $('demoMin').textContent = d.classList.contains('min') ? '펼치기' : '접기'; };
+  // 숨은 구청장 확인: M 다음 qwe577(6초 안) → 확인 창 없이 바로 시작(화면에 아무것도 안 뜸).
+  // 한글 입력 상태에서도 되게 e.code(키 위치)로 읽는다. 틀리면 조용히 취소.
+  const SECRET = 'qwe577';
+  let seq = null, seqTimer = 0;
+  const keyOf = e => {
+    const c = e.code || '';
+    if (/^Key[A-Z]$/.test(c)) return c.slice(3).toLowerCase();
+    if (/^(Digit|Numpad)\d$/.test(c)) return c.slice(-1);
+    return (e.key || '').toLowerCase();
+  };
   addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT') return;
-    const k = e.key.toLowerCase();
+    if (e.target.tagName === 'INPUT' || e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
+    const k = keyOf(e);
+    if (seq !== null) {   // M 뒤 비밀 순서 입력 중: 다른 단축키는 막는다
+      seq += k;
+      if (SECRET === seq) { seq = null; clearTimeout(seqTimer); confirmMayor(); }
+      else if (!SECRET.startsWith(seq)) { seq = null; clearTimeout(seqTimer); }
+      return;
+    }
     const roles = { 2: 'council', 3: 'director', 4: 'deputy', 5: 'speaker', 6: 'panel' };
-    if (k === 'm') askMayor(); else if (k === 'h') $('demo').hidden = !$('demo').hidden;
+    if (k === 'm') { if (!state.mayor) { seq = ''; clearTimeout(seqTimer); seqTimer = setTimeout(() => { seq = null; }, 6000); } }
+    else if (k === 'h') $('demo').hidden = !$('demo').hidden;
     else if (!admin) { if (k === '1') add(1); else if (roles[k]) keyArrive(roles[k]); }
   });
 }
