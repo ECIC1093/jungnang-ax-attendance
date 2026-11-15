@@ -1,0 +1,67 @@
+/* 휴대폰 등록(join.html)·담당자(admin.html) 공통 스타일. 참고 사이트 common.css를 포럼 색(남색 안내판·안전 노랑·중랑 3색)으로 바꿈 */
+:root{
+  --bg:#f3f5f9; --panel:#ffffff; --text:#16203a; --muted:#5a6480; --line:#dde2ec;
+  --accent:#0d1730; --on-accent:#ffffff; --soft:#eaeef6; --ink:#0d1730;
+  --safety:#ffc527; --jn-green:#106A3A; --jn-violet:#9E1C84; --jn-blue:#0057A3;
+  --ok:#1C7C38; --ok-soft:#e3f1e8; --warn:#8a5a00; --warn-soft:#fff3d6; --bad:#a3262a; --bad-soft:#fde7e7;
+  --radius:14px; --shadow:0 1px 2px rgba(20,30,60,.06),0 6px 24px rgba(20,30,60,.07);
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  --f-display:"Black Han Sans","IBM Plex Sans KR","Malgun Gothic",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--f-body);font-size:16px;line-height:1.55}
+a{color:var(--jn-blue)}
+h1,h2,h3{line-height:1.3;margin:0}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:inherit;font-weight:600;font-size:15px;
+  padding:11px 18px;border-radius:10px;border:1px solid transparent;cursor:pointer;text-decoration:none;
+  transition:transform .12s ease,background .2s,box-shadow .2s;min-height:44px}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{box-shadow:0 4px 14px rgba(13,23,48,.3)}
+.btn.safety{background:var(--safety);color:var(--accent)}
+.btn.ghost{background:transparent;border-color:var(--line);color:var(--text)}
+.btn.ghost:hover{background:var(--soft)}
+.btn.danger{background:var(--bad);color:#fff}
+.btn.small{min-height:34px;padding:6px 12px;font-size:14px;border-radius:8px}
+.btn.big{font-size:18px;padding:16px 22px;width:100%;border-radius:12px}
+.btn:disabled{opacity:.5;cursor:default;transform:none}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:3px solid rgba(0,87,163,.5);outline-offset:2px}
+
+label.f{display:block;font-weight:600;font-size:14px;margin:0 0 6px}
+.hint{font-size:13px;color:var(--muted);margin:4px 0 0}
+input[type=text],input[type=password],input[type=search],select,textarea{
+  width:100%;font:inherit;font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+
+/* 안내판 머리띠: 3색 띠 + 남색 + 안전 줄무늬 */
+.tri{display:flex;height:4px}.tri i{flex:1}.tri i:nth-child(1){background:var(--jn-green)}.tri i:nth-child(2){background:var(--jn-violet)}.tri i:nth-child(3){background:var(--jn-blue)}
+.hazard{height:8px;background:repeating-linear-gradient(-45deg,var(--safety) 0 12px,var(--accent) 12px 24px)}
+.topbar{background:var(--accent);color:var(--on-accent);padding:18px max(16px,env(safe-area-inset-left)) 18px}
+.topbar .eyebrow{font-size:13px;letter-spacing:.06em;color:var(--safety);font-weight:700}
+.topbar h1{font-family:var(--f-display);font-weight:400;font-size:24px;letter-spacing:.01em}
+
+/* 알림 */
+#app-toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,30px);opacity:0;pointer-events:none;z-index:1000;
+  background:#16203a;color:#fff;padding:12px 18px;border-radius:999px;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.25);
+  transition:opacity .25s,transform .25s;max-width:calc(100vw - 32px);text-align:center}
+#app-toast.show{opacity:1;transform:translate(-50%,0)}
+#app-toast.bad{background:var(--bad)} #app-toast.ok{background:var(--ok)}
+
+/* 확인 창 */
+.app-modal{position:fixed;inset:0;background:rgba(15,20,35,.45);display:grid;place-items:center;padding:16px;z-index:999;opacity:0;transition:opacity .18s}
+.app-modal.in{opacity:1} .app-modal.out{opacity:0}
+.app-modal-box{background:#fff;color:#16203a;border-radius:16px;padding:22px;width:min(420px,100%);box-shadow:0 20px 60px rgba(0,0,0,.3);
+  transform:translateY(12px) scale(.98);transition:transform .2s}
+.app-modal.in .app-modal-box{transform:none}
+.app-modal-box h2{font-size:19px;margin-bottom:8px}
+.app-modal-box p{margin:0 0 14px;color:#4a5270}
+.app-modal-input{margin-bottom:14px}
+.app-modal-btns{display:flex;gap:8px;justify-content:flex-end}
+
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
