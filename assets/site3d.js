@@ -19,7 +19,7 @@ const FX = LOW ? 0.5 : 1;                               // 폭죽·꽃가루 양
    등록 알림 '딩동', 중요 관계자 차임, 칸 내려놓을 때 '툭', 장비·크레인 '부릉', 구청장 도착 팡파르, 마감 조각 '쿵', 도장 '쾅', 폭죽 '슝·펑' */
 const sfx = (() => {
   const MUTE = /[?&]mute(&|$)/.test(location.search), AC = window.AudioContext || window.webkitAudioContext;
-  let ac = null, out = null, noiseBuf = null; const last = {};
+  let ac = null, out = null, noiseBuf = null, rushEnd = 0; const last = {};
   const unlock = () => {
     if (MUTE || !AC) return;
     if (!ac) { ac = new AC(); out = ac.createGain(); out.gain.value = 0.55; const comp = ac.createDynamicsCompressor(); out.connect(comp); comp.connect(ac.destination); }
@@ -46,10 +46,23 @@ const sfx = (() => {
   return {
     pop() { if (ok('pop', 120)) { tone(880, 0, 0.18, { vol: 0.12 }); tone(1318.5, 0.08, 0.3, { vol: 0.1 }); } },
     key() { if (ok('key', 150)) [784, 988, 1175, 1568].forEach((f, i) => tone(f, i * 0.08, 0.38, { type: 'triangle', vol: 0.11 })); },
-    land() { if (ok('land', 90)) { noise(0, 0.16, { vol: 0.15, freq: 320 }); tone(110, 0, 0.14, { vol: 0.09, f2: 70 }); } },
+    land() { if (performance.now() < rushEnd) return; if (ok('land', 90)) { noise(0, 0.16, { vol: 0.15, freq: 320 }); tone(110, 0, 0.14, { vol: 0.09, f2: 70 }); } },
     thump() { if (ok('thump', 60)) { noise(0, 0.3, { vol: 0.22, freq: 220 }); tone(80, 0, 0.3, { vol: 0.18, f2: 45 }); } },
     machine() { if (ok('machine', 300)) { tone(70, 0, 1.2, { type: 'sawtooth', vol: 0.05, f2: 95, attack: 0.15 }); noise(0, 1.0, { vol: 0.06, freq: 400 }); } },
     fanfare() { if (ok('fanfare')) { [[523.25, 0], [659.25, 0.14], [783.99, 0.28], [1046.5, 0.42]].forEach(([f, d]) => tone(f, d, 0.5, { type: 'triangle', vol: 0.16 })); [523.25, 659.25, 783.99].forEach(f => tone(f, 0.62, 1.2, { type: 'triangle', vol: 0.1 })); } },
+    // 구청장 확인 뒤 남은 칸이 한꺼번에 쌓일 때 '촤라락': 짧은 '딱' 소리를 촘촘히(점점 빠르게·높게) + 쏟아지는 소리, 끝에 '착'
+    rush(sec) {
+      if (!ok('rush')) return;
+      sec = Math.max(0.8, sec); rushEnd = performance.now() + sec * 1000;
+      noise(0, sec + 0.3, { vol: 0.07, type: 'bandpass', freq: 500, f2: 1800, q: 0.9 });
+      for (let t0 = 0, k = 0; t0 < sec; k++) {
+        const p = t0 / sec;
+        noise(t0, 0.05, { vol: 0.12 + 0.06 * Math.random(), type: 'bandpass', freq: 900 + 1600 * p + Math.random() * 700, q: 3 });
+        if (k % 3 === 0) tone(160 + 140 * p, t0, 0.06, { vol: 0.05 });
+        t0 += 0.045 - 0.02 * p + Math.random() * 0.02;
+      }
+      noise(sec, 0.35, { vol: 0.22, freq: 1400, f2: 300 }); tone(98, sec, 0.3, { vol: 0.12, f2: 60 });
+    },
     stamp() { if (ok('stamp')) { noise(0, 0.25, { vol: 0.35, freq: 180 }); tone(60, 0, 0.35, { vol: 0.25, f2: 40 }); } },
     cheer() { if (ok('cheer')) noise(0, 2.6, { vol: 0.08, type: 'bandpass', freq: 1200, q: 0.5 }); },
     whoosh() { if (ok('whoosh', 70)) noise(0, 0.7, { vol: 0.05, type: 'bandpass', freq: 600, f2: 2400, q: 1.5 }); },
@@ -1410,6 +1423,7 @@ function mayorArrive() {
   setTimeout(() => {
     cranes.forEach((c, n) => tween(1.2, k => { c.jib.rotation.y += ((n ? 0.4 : 2.6) - c.jib.rotation.y) * k * 0.15; c.trolley.position.x += (6 - c.trolley.position.x) * k * 0.1; }));
     const gap = Math.min(110, 6000 / Math.max(1, rest.length)) / MAYOR_SPEED;   // 남은 칸이 많아도 6초(두 배 빠르게 → 3초) 안에
+    if (rest.length) sfx.rush((rest.length * gap) / 1000 + 0.6 / MAYOR_SPEED);   // 쫘르륵 쌓이는 동안 '촤라락'
     rest.forEach((idx, n) => placeFast(blocks[idx], n * gap, () => { placed++; hud(); }));
     const tCrown = rest.length * gap + 900 / MAYOR_SPEED;
     crown.forEach((c, n) => placeFast(c, tCrown + n * 450 / MAYOR_SPEED, () => { placed++; hud(); sfx.thump(); if (n === crown.length - 1) setTimeout(complete, 600 / MAYOR_SPEED); }));
