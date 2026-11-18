@@ -49,8 +49,9 @@ body.dusk #skyDusk{opacity:1}
 /* 슬로건: 행사명 바로 아래, 안내문보다 크고 밝게 */
 #brand p.tagline{margin:4px 0 0;color:var(--text);font-size:clamp(17px,1.45vw,21px);font-weight:700;line-height:1.35;letter-spacing:-.01em}
 #brand p.tagline::before{content:"";display:inline-block;width:4px;height:.95em;margin-right:8px;vertical-align:-.1em;background:var(--safety);border-radius:1px}
-.joinrow{display:grid;grid-template-columns:108px 1fr;gap:14px;align-items:center;margin-top:10px;padding-top:14px;border-top:1px dashed var(--line)}
-.qr{box-sizing:border-box;width:108px;height:108px;border-radius:4px;background:#fff;color:#4a5670;display:grid;place-items:center;text-align:center;font-size:11.5px;line-height:1.35;padding:8px;border:2px dashed #b9c2d2}
+/* QR: 프로젝터에서 멀리서도 찍히게 1.5배(108→162px, 좁은 화면 72→100px) — 2026-11-18 사용자 요청 */
+.joinrow{display:grid;grid-template-columns:162px 1fr;gap:14px;align-items:center;margin-top:10px;padding-top:14px;border-top:1px dashed var(--line)}
+.qr{box-sizing:border-box;width:162px;height:162px;border-radius:4px;background:#fff;color:#4a5670;display:grid;place-items:center;text-align:center;font-size:11.5px;line-height:1.35;padding:8px;border:2px dashed #b9c2d2}
 .joinrow b{display:block;font-size:17px;line-height:1.35}
 .joinrow span{font-size:13px;color:var(--muted)}
 
@@ -152,7 +153,7 @@ body.dusk #skyDusk{opacity:1}
 @media (max-width:900px){
   #brand p:not(.tagline),.joinrow span{display:none}
   #brand p.tagline{font-size:15px}
-  .joinrow{grid-template-columns:72px 1fr}.qr{width:72px;height:72px;font-size:9.5px}
+  .joinrow{grid-template-columns:100px 1fr}.qr{width:100px;height:100px;font-size:9.5px}
   #meter{top:auto;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:max(16px,env(safe-area-inset-left,0px));right:auto}
   .pct b{font-size:38px}
   #log{display:none}
