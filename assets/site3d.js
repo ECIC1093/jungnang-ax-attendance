@@ -14,6 +14,49 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const LOW = /[?&]q=low(&|$)/.test(location.search);   // 성능 낮춤 모드(행사 노트북이 버거울 때)
 const FX = LOW ? 0.5 : 1;                               // 폭죽·꽃가루 양 배율
 
+/* ===== 소리(브라우저에서 합성, 소리 파일 없음) — 2026-11-18 =====
+   브라우저 규칙상 화면을 한 번 누르거나 키를 눌러야 소리가 난다 → 첫 클릭·터치·키 입력 때 켜짐. 주소에 ?mute 를 붙이면 끔.
+   등록 알림 '딩동', 중요 관계자 차임, 칸 내려놓을 때 '툭', 장비·크레인 '부릉', 구청장 도착 팡파르, 마감 조각 '쿵', 도장 '쾅', 폭죽 '슝·펑' */
+const sfx = (() => {
+  const MUTE = /[?&]mute(&|$)/.test(location.search), AC = window.AudioContext || window.webkitAudioContext;
+  let ac = null, out = null, noiseBuf = null; const last = {};
+  const unlock = () => {
+    if (MUTE || !AC) return;
+    if (!ac) { ac = new AC(); out = ac.createGain(); out.gain.value = 0.55; const comp = ac.createDynamicsCompressor(); out.connect(comp); comp.connect(ac.destination); }
+    if (ac.state === 'suspended') ac.resume();
+  };
+  ['pointerdown', 'keydown', 'touchstart'].forEach(e => addEventListener(e, unlock, { passive: true }));
+  const ok = (name, gapMs) => {   // 소리가 켜져 있고, 같은 소리가 너무 촘촘하지 않을 때만
+    if (!ac || ac.state !== 'running') return false;
+    const now = performance.now(); if (gapMs && now - (last[name] || 0) < gapMs) return false; last[name] = now; return true;
+  };
+  const tone = (f, t0, dur, { type = 'sine', vol = 0.2, f2 = 0, attack = 0.01 } = {}) => {
+    const o = ac.createOscillator(), g = ac.createGain(), s = ac.currentTime + t0;
+    o.type = type; o.frequency.setValueAtTime(f, s); if (f2) o.frequency.exponentialRampToValueAtTime(f2, s + dur);
+    g.gain.setValueAtTime(0.0001, s); g.gain.exponentialRampToValueAtTime(vol, s + attack); g.gain.exponentialRampToValueAtTime(0.0001, s + dur);
+    o.connect(g); g.connect(out); o.start(s); o.stop(s + dur + 0.05);
+  };
+  const noise = (t0, dur, { vol = 0.3, freq = 800, q = 0.7, type = 'lowpass', f2 = 0 } = {}) => {
+    if (!noiseBuf) { noiseBuf = ac.createBuffer(1, ac.sampleRate * 3, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), s = ac.currentTime + t0;
+    src.buffer = noiseBuf; f.type = type; f.frequency.setValueAtTime(freq, s); if (f2) f.frequency.exponentialRampToValueAtTime(f2, s + dur); f.Q.value = q;
+    g.gain.setValueAtTime(vol, s); g.gain.exponentialRampToValueAtTime(0.0001, s + dur);
+    src.connect(f); f.connect(g); g.connect(out); src.start(s, Math.random() * Math.max(0, 3 - dur)); src.stop(s + dur + 0.05);
+  };
+  return {
+    pop() { if (ok('pop', 120)) { tone(880, 0, 0.18, { vol: 0.12 }); tone(1318.5, 0.08, 0.3, { vol: 0.1 }); } },
+    key() { if (ok('key', 150)) [784, 988, 1175, 1568].forEach((f, i) => tone(f, i * 0.08, 0.38, { type: 'triangle', vol: 0.11 })); },
+    land() { if (ok('land', 90)) { noise(0, 0.16, { vol: 0.15, freq: 320 }); tone(110, 0, 0.14, { vol: 0.09, f2: 70 }); } },
+    thump() { if (ok('thump', 60)) { noise(0, 0.3, { vol: 0.22, freq: 220 }); tone(80, 0, 0.3, { vol: 0.18, f2: 45 }); } },
+    machine() { if (ok('machine', 300)) { tone(70, 0, 1.2, { type: 'sawtooth', vol: 0.05, f2: 95, attack: 0.15 }); noise(0, 1.0, { vol: 0.06, freq: 400 }); } },
+    fanfare() { if (ok('fanfare')) { [[523.25, 0], [659.25, 0.14], [783.99, 0.28], [1046.5, 0.42]].forEach(([f, d]) => tone(f, d, 0.5, { type: 'triangle', vol: 0.16 })); [523.25, 659.25, 783.99].forEach(f => tone(f, 0.62, 1.2, { type: 'triangle', vol: 0.1 })); } },
+    stamp() { if (ok('stamp')) { noise(0, 0.25, { vol: 0.35, freq: 180 }); tone(60, 0, 0.35, { vol: 0.25, f2: 40 }); } },
+    cheer() { if (ok('cheer')) noise(0, 2.6, { vol: 0.08, type: 'bandpass', freq: 1200, q: 0.5 }); },
+    whoosh() { if (ok('whoosh', 70)) noise(0, 0.7, { vol: 0.05, type: 'bandpass', freq: 600, f2: 2400, q: 1.5 }); },
+    boom() { if (ok('boom', 50)) { noise(0, 0.9, { vol: 0.26, freq: 900, f2: 120 }); tone(70, 0, 0.5, { vol: 0.13, f2: 40 }); noise(0.75, 0.35, { vol: 0.05, type: 'highpass', freq: 3000 }); } },
+  };
+})();
+
 /* ===== 설정 ===== */
 const EXPECTED = 70;              // 참석 예정 인원
 /* 실제 중랑구청 배치 — 청사 평면도(1993, 70.2m × 85.8m)와 항공·광장 사진 기준. 1칸(단위) = 약 3m.
@@ -809,8 +852,11 @@ function burst(pos, { n = 18, color = 0xcbb89a, speed = 3, life = 0.9, size = 0.
 }
 
 /* ===== 칸 올리기 ===== */
+// 시공 속도: 등록 뒤 칸 올리기는 BUILD배(1.2 = 20% 빠르게), 구청장 확인 뒤 마감은 MAYOR_SPEED배(2 = 두 배) — 2026-11-18 사용자 요청
+const BUILD = 1.2, MAYOR_SPEED = 2, bt = s => s / BUILD;
 let placed = 0;
 function land(b) {
+  sfx.land();
   const h = b.userData.home;
   tween(0.25, k => { b.scale.set(1 + 0.05 * Math.sin(k * Math.PI), 1 - 0.08 * Math.sin(k * Math.PI), 1); }, () => b.scale.set(1, 1, 1));
   burst(new THREE.Vector3(h.x, h.y - b.userData.h / 2, h.z + b.userData.d / 2), { n: 14 });
@@ -821,10 +867,10 @@ function placeByCrane(i, c, done) {
   const th = Math.atan2(-dz, dx), r = Math.hypot(dx, dz);
   const th0 = jib.rotation.y, r0 = trolley.position.x;
   let d = th - th0; d = Math.atan2(Math.sin(d), Math.cos(d));
-  tween(0.55, k => { const e = ease.inOut(k); jib.rotation.y = th0 + d * e; trolley.position.x = r0 + (r - r0) * e; }, () => {
+  tween(bt(0.55), k => { const e = ease.inOut(k); jib.rotation.y = th0 + d * e; trolley.position.x = r0 + (r - r0) * e; }, () => {
     const topY = c.H - 2.5;
     b.visible = true; b.position.set(h.x, topY, h.z); c.carried = b;
-    tween(0.85, k => { b.position.y = topY + (h.y - topY) * ease.inOut(k); b.rotation.y = Math.sin(k * Math.PI) * 0.06; }, () => {
+    tween(bt(0.85), k => { b.position.y = topY + (h.y - topY) * ease.inOut(k); b.rotation.y = Math.sin(k * Math.PI) * 0.06; }, () => {
       b.position.copy(h); b.rotation.y = 0; c.carried = null; land(b); done && done();
     });
   });
@@ -842,13 +888,13 @@ function growInPlace(i, done) {
   });
   const bars = g.children.filter(o => !cols.includes(o)); bars.forEach(o => o.visible = false);
   burst(new THREE.Vector3(h.x, y0, h.z), { n: 10, speed: 2 });
-  tween(0.55, k => cols.forEach((c, n) => { const s = Math.max(0.01, ease.out(Math.min(1, k * 1.3 - n * 0.1))); c.scale.y = s; c.position.y = H * s / 2; }), () => {
+  tween(bt(0.55), k => cols.forEach((c, n) => { const s = Math.max(0.01, ease.out(Math.min(1, k * 1.3 - n * 0.1))); c.scale.y = s; c.position.y = H * s / 2; }), () => {
     cols.forEach(c => { c.scale.y = 1; c.position.y = H / 2; }); bars.forEach(o => o.visible = true);
     const beams = [[W, 0.2, 0.22, 0, cz], [W, 0.2, 0.22, 0, -cz], [0.22, 0.2, D, cx, 0], [0.22, 0.2, D, -cx, 0]].map(([w, hh, d, x, z]) => box(w, hh, d, frameM, x, H - 0.1, z, g));
     beams.forEach(bm => bm.scale.set(0.01, 1, 0.01));
-    tween(0.35, k => beams.forEach((bm, n) => { const s = Math.max(0.01, k); if (n < 2) bm.scale.x = s; else bm.scale.z = s; }), () => {
+    tween(bt(0.35), k => beams.forEach((bm, n) => { const s = Math.max(0.01, k); if (n < 2) bm.scale.x = s; else bm.scale.z = s; }), () => {
       b.visible = true; b.position.copy(h); b.scale.set(0.97, 0.02, 0.97);
-      tween(0.9, k => { const s = Math.max(0.02, k); b.scale.y = s; b.position.y = y0 + H * s / 2; }, () => {   // 벽: 아래부터 일정한 속도로
+      tween(bt(0.9), k => { const s = Math.max(0.02, k); b.scale.y = s; b.position.y = y0 + H * s / 2; }, () => {   // 벽: 아래부터 일정한 속도로
         b.scale.set(1, 1, 1); b.position.copy(h); scene.remove(g); land(b); done && done();
       });
     });
@@ -877,12 +923,12 @@ function placeByHeli(i, done) {
   const hover = new THREE.Vector3(h.x, Math.max(h.y + HANG + 4, TOP + 5), h.z), start = hv.g.position.clone();
   hv.atPark = false; b.visible = true; hv.carried = b; faceTo(hv.g, start, hover);
   const hangY = () => hv.g.position.y - 1.2 - HANG - H / 2;
-  tween(start.distanceTo(hover) > 25 ? 1.8 : 1.1, k => {
+  tween(bt(start.distanceTo(hover) > 25 ? 1.8 : 1.1), k => {
     hv.g.position.lerpVectors(start, hover, ease.inOut(k)); hv.g.rotation.z = -Math.sin(k * Math.PI) * 0.22;
     b.position.set(hv.g.position.x, hangY(), hv.g.position.z); b.rotation.y = Math.sin(k * 6) * 0.05;
   }, () => {
     const y0 = b.position.y; hv.g.rotation.z = 0;
-    tween(0.9, k => { b.position.y = y0 + (h.y - y0) * ease.inOut(k); }, () => {
+    tween(bt(0.9), k => { b.position.y = y0 + (h.y - y0) * ease.inOut(k); }, () => {
       b.position.copy(h); b.rotation.y = 0; hv.carried = null; hv.idleAt = t; land(b); done && done();
     });
   });
@@ -924,16 +970,16 @@ const ladder = (() => {
 function placeByLadder(i, done) {
   const lt = ladder, b = blocks[i], h = b.userData.home, H = b.userData.h, D = b.userData.d;
   const x0 = lt.g.position.x, x1 = Math.max(-14, Math.min(14.5, h.x + 1.6));
-  tween(Math.min(1.4, 0.3 + Math.abs(x1 - x0) * 0.07), k => { lt.g.position.x = x0 + (x1 - x0) * ease.inOut(k); }, () => {
+  tween(bt(Math.min(1.4, 0.3 + Math.abs(x1 - x0) * 0.07)), k => { lt.g.position.x = x0 + (x1 - x0) * ease.inOut(k); }, () => {
     const P = new THREE.Vector3(x1 - 1.6, 2.45, lt.g.position.z), A = new THREE.Vector3(h.x, h.y + 0.12, h.z + D + 0.3);   // A: 칸 자리 바로 앞
     const tipY = A.y - H / 2 - 0.08, dz = P.z - A.z, dy = tipY - P.y, L = Math.hypot(dz, dy), th = Math.atan2(dy, dz);
-    tween(0.6, k => lt.setBoom(2.5 + (L - 2.5) * ease.out(k), th * ease.out(k)), () => {
+    tween(bt(0.6), k => lt.setBoom(2.5 + (L - 2.5) * ease.out(k), th * ease.out(k)), () => {
       b.visible = true;
-      tween(1.2, k => { const e = ease.inOut(k); b.position.set(h.x, P.y + 0.08 + H / 2 + dy * e, P.z - dz * e); }, () => {
+      tween(bt(1.2), k => { const e = ease.inOut(k); b.position.set(h.x, P.y + 0.08 + H / 2 + dy * e, P.z - dz * e); }, () => {
         const s = b.position.clone();
-        tween(0.45, k => b.position.lerpVectors(s, h, ease.inOut(k)), () => {
+        tween(bt(0.45), k => b.position.lerpVectors(s, h, ease.inOut(k)), () => {
           b.position.copy(h); land(b);
-          tween(0.5, k => lt.setBoom(L + (2.5 - L) * k, th * (1 - k)), () => done && done());
+          tween(bt(0.5), k => lt.setBoom(L + (2.5 - L) * k, th * (1 - k)), () => done && done());
         });
       });
     });
@@ -955,20 +1001,20 @@ function placeCell(i, c, done) { if (c.kind === 'ground') growInPlace(i, done); 
 function placeFast(obj, delay, done) {
   const h = obj.userData.home;
   if (obj.userData.rise) {   // 슬로건 조형물: 자리에 두고 글자 덩어리가 하나씩 땅에서 솟아오름
-    const parts = obj.userData.rise, step = REDUCED ? 0 : 280;
+    const parts = obj.userData.rise, step = REDUCED ? 0 : 280 / MAYOR_SPEED;
     setTimeout(() => {
       parts.forEach(p => { p.g.position.y = p.y - 2.2; });
       obj.visible = true; obj.position.copy(h);
       parts.forEach((p, i) => setTimeout(() => {
         const wp = new THREE.Vector3(); p.g.getWorldPosition(wp); wp.y = 0.2; burst(wp, { n: 12, color: 0x8a6a45, speed: 2.4 });
-        tween(0.55, k => { p.g.position.y = p.y - 2.2 * (1 - ease.back(k)); }, () => { p.g.position.y = p.y; if (i === parts.length - 1) done && done(); });
+        tween(0.55 / MAYOR_SPEED, k => { p.g.position.y = p.y - 2.2 * (1 - ease.back(k)); }, () => { p.g.position.y = p.y; if (i === parts.length - 1) done && done(); });
       }, i * step));
     }, REDUCED ? 0 : delay);
     return;
   }
   setTimeout(() => {
     obj.visible = true; obj.position.set(h.x, h.y + 16, h.z);
-    tween(0.6, k => { obj.position.y = h.y + 16 * (1 - ease.in(k)); }, () => { obj.position.copy(h); if (obj.userData.floor) land(obj); else burst(h.clone(), { n: 24, speed: 4 }); done && done(); });
+    tween(0.6 / MAYOR_SPEED, k => { obj.position.y = h.y + 16 * (1 - ease.in(k)); }, () => { obj.position.copy(h); if (obj.userData.floor) land(obj); else burst(h.clone(), { n: 24, speed: 4 }); done && done(); });
   }, REDUCED ? 0 : delay);
 }
 
@@ -1144,7 +1190,7 @@ function addLight(instant) { if (extras.lights >= LIGHT_SPOTS.length) return 0; 
 function raiseCrane2(instant) {
   if (crane2.ready || crane2.raising) return false;
   if (instant) { crane2.ready = true; crane2.g.visible = true; crane2.g.scale.set(1, 1, 1); crane2.hook.visible = true; crane2.cable.visible = true; return true; }
-  crane2.raising = true; crane2.g.visible = true; crane2.g.scale.set(1, 0.02, 1);
+  sfx.machine(); crane2.raising = true; crane2.g.visible = true; crane2.g.scale.set(1, 0.02, 1);
   burst(crane2.g.position.clone().setY(0.3), { n: 30, speed: 4 });
   tween(2.6, k => crane2.g.scale.set(1, 0.02 + 0.98 * ease.out(k), 1), () => {
     crane2.ready = true; crane2.hook.visible = true; crane2.cable.visible = true; setTimeout(pump, 100);
@@ -1159,7 +1205,7 @@ function deployNext(instant) {
   const [sx, sz] = def.spot;
   if (instant) { m.g.position.set(sx, 0, sz); m.g.rotation.y = def.face; scene.add(m.g); deployed.push({ key, m, ready: true }); return def.name; }
   m.g.position.set(sx > 0 ? 40 : -40, 0, 23); m.g.rotation.y = sx > 0 ? Math.PI : 0; scene.add(m.g);
-  const rec = { key, m, ready: false }; deployed.push(rec);
+  const rec = { key, m, ready: false }; deployed.push(rec); sfx.machine();
   const from = m.g.position.clone(), mid = new THREE.Vector3(sx, 0, 23), to = new THREE.Vector3(sx, 0, sz);
   tween(2.2, k => { m.g.position.lerpVectors(from, mid, ease.out(k)); }, () => {
     m.g.rotation.y = Math.PI / 2 * (sz < 23 ? -1 : 1) + Math.PI;
@@ -1285,7 +1331,7 @@ function arrive(p) {
   if (state.done || !p) return;
   if (state.mayor) {   // 마감·출범 중 들어온 사람: 칸·장비는 없이 알림·숫자·일지만
     state.count++; if (p.role) state.key++;
-    toast({ who: p.role ? (ROLE_LABEL[p.role] || '') : '', dept: p.dept || '', name: p.name || ROLE_LABEL[p.role] || '참석자', rank: p.name ? (p.rank || '') : '', what: '함께 출범을 축하합니다', key: !!p.role });
+    toast({ who: p.role ? (ROLE_LABEL[p.role] || '') : '', dept: p.dept || '', name: p.name || ROLE_LABEL[p.role] || '참석자', rank: p.name ? (p.rank || '') : '', what: '함께 출범을 축하합니다', key: !!p.role }); p.role ? sfx.key() : sfx.pop();
     logLine(...logParts(p), '등록', !!p.role, p.at, logDept(p)); hud(); return;
   }
   announce(p);
@@ -1333,14 +1379,15 @@ function announce(p) {
   // 동명이인은 소속으로만 구별 → 소속과 이름을 늘 같이. 직위는 비어 있을 수 있음(직접 입력)
   toast({ who: key ? roleName : '', /* 이름 위 노란 표시: 직책만 */ dept: p.dept || '', name: p.name || roleName || '참석자', rank: p.name ? (p.rank || '') : '', what: parts.join(' · '), key });
   logLine(...logParts(p), extra, key, p.at, logDept(p));
+  key ? sfx.key() : sfx.pop();
   if (key) cheerAll();
   hud();
 }
 function place(c) {
   c.busy = true;
-  const next = () => { c.busy = false; hud(); setTimeout(pump, queue.length > 6 ? 60 : 250); };
+  const next = () => { c.busy = false; hud(); setTimeout(pump, bt(queue.length > 6 ? 60 : 250)); };
   if (placed < TOTAL) { const i = placed++; hud(); placeCell(i, c, next); }
-  else setTimeout(next, 600);   // 칸을 다 지었으면 마감 자재만 쌓아 둔다
+  else setTimeout(next, bt(600));   // 칸을 다 지었으면 마감 자재만 쌓아 둔다
 }
 
 function mayorArrive() {
@@ -1349,7 +1396,7 @@ function mayorArrive() {
   // 줄 서 있던 등록은 애니메이션 없이 숫자에만 반영
   queue.splice(0);   // 줄 서 있던 칸은 아래에서 남은 칸과 함께 한꺼번에(사람은 이미 등록 때 셈)
   state.count++;
-  toast({ name: '구청장님 도착', sir: false, what: '마감 공사를 시작합니다', key: true, mark: '★', center: true });
+  toast({ name: '구청장님 도착', sir: false, what: '마감 공사를 시작합니다', key: true, mark: '★', center: true }); sfx.fanfare();
   logLine('구청장님 도착', '출범', true);
   cheerAll();
   for (let i = 0; i < 6; i++) makeWorker(true);
@@ -1362,10 +1409,10 @@ function mayorArrive() {
   addOffice();
   setTimeout(() => {
     cranes.forEach((c, n) => tween(1.2, k => { c.jib.rotation.y += ((n ? 0.4 : 2.6) - c.jib.rotation.y) * k * 0.15; c.trolley.position.x += (6 - c.trolley.position.x) * k * 0.1; }));
-    const gap = Math.min(110, 6000 / Math.max(1, rest.length));   // 남은 칸이 많아도 6초 안에
+    const gap = Math.min(110, 6000 / Math.max(1, rest.length)) / MAYOR_SPEED;   // 남은 칸이 많아도 6초(두 배 빠르게 → 3초) 안에
     rest.forEach((idx, n) => placeFast(blocks[idx], n * gap, () => { placed++; hud(); }));
-    const tCrown = rest.length * gap + 900;
-    crown.forEach((c, n) => placeFast(c, tCrown + n * 450, () => { placed++; hud(); if (n === crown.length - 1) setTimeout(complete, 600); }));
+    const tCrown = rest.length * gap + 900 / MAYOR_SPEED;
+    crown.forEach((c, n) => placeFast(c, tCrown + n * 450 / MAYOR_SPEED, () => { placed++; hud(); sfx.thump(); if (n === crown.length - 1) setTimeout(complete, 600 / MAYOR_SPEED); }));
   }, waitCrane);
 }
 
@@ -1415,10 +1462,11 @@ function launch(delay) {
   setTimeout(() => {
     const head = new THREE.Mesh(rocketGeo, new THREE.MeshBasicMaterial({ color: 0xfff3c4 }));
     head.position.set(-20 + Math.random() * 40, 1, -24 + Math.random() * 36); scene.add(head);
-    rockets.push({ head, col: pickC(), apex: TOP + 5 + Math.random() * 9, vy: 18 + Math.random() * 5, vx: (Math.random() - .5) * 2, trail: 0 });
+    sfx.whoosh(); rockets.push({ head, col: pickC(), apex: TOP + 5 + Math.random() * 9, vy: 18 + Math.random() * 5, vx: (Math.random() - .5) * 2, trail: 0 });
   }, delay || 0);
 }
 function explode(p, col) {
+  sfx.boom();
   const r = Math.random();
   burst(p, { n: Math.round(140 * FX), color: col, speed: 7 + Math.random() * 3, life: 2.2, size: 0.95 * (LOW ? 1.25 : 1), gravity: 2.4, additive: true });
   if (r < 0.35) burst(p, { n: Math.round(80 * FX), color: pickC(), speed: 4, life: 1.8, size: 0.75, gravity: 2, additive: true });       // 두 겹
@@ -1476,6 +1524,15 @@ function complete(instant) {
     tween(4, toNight, () => { ghost.visible = false; });
     tween(5, camTo);
   }
+  // 타워크레인(중앙광장 2호기·서쪽 뒤편 1호기)은 다 지었으니 치운다: 출범 카드가 뜬 뒤 천천히 내려가며 사라짐(이어 그리기는 바로) — 2026-11-18
+  const craneParts = c => [c.g, c.hook, c.cable];
+  if (instant) cranes.forEach(c => craneParts(c).forEach(o => { o.visible = false; }));
+  else setTimeout(() => {
+    cranes.forEach(c => { c.ready = false; c.hook.visible = c.cable.visible = false; });
+    if (cranes.some(c => c.g.visible)) sfx.machine();
+    tween(2.4, k => cranes.forEach(c => c.g.scale.set(1, Math.max(0.01, 1 - ease.inOut(k)), 1)), () => cranes.forEach(c => { c.g.visible = false; }));
+  }, 3500);
+  if (!instant) { sfx.cheer(); setTimeout(() => sfx.stamp(), 1200 + 1100); }   // 도장 찍히는 순간(카드 1.2초 + 도장 애니메이션 1.1초)
   cheerAll(); setInterval(cheerAll, 6000);
   $('fCount').textContent = state.count;
   setTimeout(() => $('finale').classList.add('show'), instant ? 0 : 1200);
