@@ -1551,7 +1551,7 @@ function complete(instant) {
   }, 3500);
   if (!instant) { sfx.cheer(); setTimeout(() => sfx.stamp(), 1200 + 1100); }   // 도장 찍히는 순간(카드 1.2초 + 도장 애니메이션 1.1초)
   cheerAll(); setInterval(cheerAll, 6000);
-  $('fCount').textContent = state.count;
+  if ($('fCount')) $('fCount').textContent = state.count;
   setTimeout(() => $('finale').classList.add('show'), instant ? 0 : 1200);
   // 폭죽: 첫 일제 발사(16발) → 쉬지 않고 이어 쏘기 → 20발마다 다시 일제 발사. 성능 낮춤 모드는 절반쯤
   if (!REDUCED) {
