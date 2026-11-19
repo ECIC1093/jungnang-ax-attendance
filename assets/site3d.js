@@ -4,7 +4,7 @@
  *   새로고침 뒤 이어 그리기: 첫 arrive 전에 한 번 site.restore({ people: [{ name, dept, rank, role, at? }], mayor: true/false })
  *   성능 낮춤: 주소에 ?q=low → 흐린 배경 캔버스 끔(먼 배경은 본 화면에 같이 그림), 그림자·해상도 낮춤, 폭죽·꽃가루 절반
  * 필요한 것: THREE(r128) 전역, index.html의 #stage·#stageBg 캔버스와 안내판 요소(#nCount·#barFill·#phase·#logList·#toasts·#finale 등).
- * arrive(p) 자료: { name(≤40자), dept(소속 ≤60자, 빈 값 가능), rank(직위, 직접 입력이면 빈 값 가능), role(council/director/deputy/speaker/panel 또는 없음), at?(등록 시각) }
+ * arrive(p) 자료: { name(≤40자), dept(소속 ≤60자, 빈 값 가능), rank(직위, 직접 입력이면 빈 값 가능), role(council/director/deputy/speaker/panel/assembly/citycouncil/minister 또는 없음), at?(등록 시각) }
  *   알림 카드·숫자는 arrive 즉시, 칸은 운반 수단이 비는 대로. */
 (function () {
 'use strict';
@@ -1337,7 +1337,7 @@ function dropToast(el) { if (el.classList.contains('out')) return; el.classList.
 
 /* ===== 도착 처리 ===== */
 // 중요 관계자: 직책마다 현장에 들어오는 것이 다르다
-const ROLE_LABEL = { council: '구의원', director: '국장', deputy: '부구청장', speaker: '발제자', panel: '토론 패널' };
+const ROLE_LABEL = { council: '구의원', director: '국장', deputy: '부구청장', speaker: '발제자', panel: '토론 패널', assembly: '국회의원', citycouncil: '시의원', minister: '장관' };
 const queue = [];
 // 참석 1명 = 칸 PER_PERSON개. 알림·숫자는 등록 즉시(크레인이 바빠도 이름이 늦게 뜨지 않게), 칸은 줄 세워 운반 수단이 비는 대로 올린다
 function arrive(p) {
@@ -1370,6 +1370,9 @@ function reward(p, instant) {
   if (p.role === 'deputy') return raiseCrane2(instant) ? ['타워크레인 2호기 설치 · 시공 속도 2배', '크레인 2호기'] : helpers(3);
   if (p.role === 'speaker') return addOffice(instant) ? ['현장사무소 개설 · 설계도 확정', '현장사무소'] : helpers(2);
   if (p.role === 'panel') { const n = addLight(instant); return n ? [`투광등 ${n}호 설치`, `투광등 ${n}호`] : helpers(2); }
+  if (p.role === 'minister') return helpers(5);
+  if (p.role === 'assembly') return helpers(4);
+  if (p.role === 'citycouncil') return helpers(3);
   return null;
 }
 function fillCrew() {   // 3명당 인부 1명(+보상 인부), 최대 40명. 새로 들어온 일반 인부 수를 돌려줌

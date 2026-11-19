@@ -176,7 +176,7 @@ details summary{cursor:pointer;font-weight:600}
   <!-- 명단 -->
   <section class="card">
     <h2>사전 명단 <small id="rosterInfo"></small></h2>
-    <p class="hint" style="margin:0 0 10px">엑셀 열: <b>연번 · 소속 · 직급 · 성명 · 구분</b>. 구분은 비우거나 <b>구의원 / 국장 / 부구청장 / 발제자 / 패널</b>. 구청장은 명단에 넣지 않습니다(넣어도 빠짐).</p>
+    <p class="hint" style="margin:0 0 10px">엑셀 열: <b>연번 · 소속 · 직급 · 성명 · 구분</b>. 구분은 비우거나 <b>구의원 / 국장 / 부구청장 / 발제자 / 패널 / 국회의원 / 시의원 / 장관</b>. 구청장은 명단에 넣지 않습니다(넣어도 빠짐).</p>
     <div class="drop" id="drop" tabindex="0" role="button" aria-label="명단 엑셀 파일 고르기">엑셀 파일(.xlsx)을 여기로 끌어 놓거나 눌러서 고르세요</div>
     <input type="file" id="rosterFile" accept=".xlsx,.xls,.csv" hidden>
     <div class="row" style="margin-top:10px"><button type="button" class="btn ghost small" id="sampleXls">명단 양식 받기</button></div>
@@ -199,7 +199,7 @@ details summary{cursor:pointer;font-weight:600}
 (function () {
   'use strict';
   const $ = id => document.getElementById(id), A = window.App;
-  const ROLE = { council: '구의원', director: '국장', deputy: '부구청장', speaker: '발제자', panel: '패널' };
+  const ROLE = { council: '구의원', director: '국장', deputy: '부구청장', speaker: '발제자', panel: '패널', assembly: '국회의원', citycouncil: '시의원', minister: '장관' };
   const ROLE_OPTS = '<option value="">일반</option>' + Object.entries(ROLE).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
   let token = null, data = null, pending = null, timer = null;
 
@@ -359,7 +359,7 @@ details summary{cursor:pointer;font-weight:600}
     const head = rows[h], col = k => head.findIndex(t => KEYS[k].test(t));
     const m = { no: col('no'), dept: col('dept'), rank: col('rank'), name: col('name'), role: col('role') };
     const cell = (r, k) => m[k] >= 0 ? String(r[m[k]] || '').trim() : '';
-    const ROLE_IN = { '구의원': 'council', '국장': 'director', '부구청장': 'deputy', '발제자': 'speaker', '발제': 'speaker', '패널': 'panel', '토론패널': 'panel', '토론자': 'panel', '구청장': 'mayor' };
+    const ROLE_IN = { '구의원': 'council', '국장': 'director', '부구청장': 'deputy', '발제자': 'speaker', '발제': 'speaker', '패널': 'panel', '토론패널': 'panel', '토론자': 'panel', '국회의원': 'assembly', '시의원': 'citycouncil', '서울시의원': 'citycouncil', '시의회의원': 'citycouncil', '장관': 'minister', '구청장': 'mayor' };
     let skipped = 0, mayor = 0; const unknown = new Set();
     let list = rows.slice(h + 1).filter(r => r.some(Boolean)).map(r => {
       const raw = cell(r, 'role'), key = raw.replace(/\s+/g, '');
